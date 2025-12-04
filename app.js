@@ -94,6 +94,37 @@ const API_URL =
 // vocab ของ user ปัจจุบัน
 let vocab = [];
 
+// ----- helper: ลบคำซ้ำใน vocab (ตาม word, ไม่สนตัวพิมพ์ใหญ่เล็ก) -----
+function dedupeVocabInMemory() {
+  const map = new Map(); // key = wordLower
+  vocab.forEach(item => {
+    const eng = String(item.word || '').trim();
+    if (!eng) return;
+    const key = eng.toLowerCase();
+    if (!map.has(key)) {
+      map.set(key, { ...item });
+    } else {
+      const prev = map.get(key);
+      const merged = { ...prev };
+
+      merged.id = item.id || prev.id || null;
+      merged.correct = Math.max(
+        Number(prev.correct || 0),
+        Number(item.correct || 0)
+      );
+      merged.wrong = Math.max(
+        Number(prev.wrong || 0),
+        Number(item.wrong || 0)
+      );
+      merged.lastSeen = item.lastSeen || prev.lastSeen || null;
+      merged.translation = String(item.translation || prev.translation || '');
+
+      map.set(key, merged);
+    }
+  });
+  vocab = Array.from(map.values());
+}
+
 // ดึง user ปัจจุบันจาก localStorage
 function getCurrentUser() {
   try {
@@ -132,7 +163,6 @@ function logout() {
 }
 
 // โหลด vocab จาก Google Sheet (words + stats ของ user)
-// โหลด vocab จาก Google Sheet (words + stats ของ user)
 async function loadAll() {
   const user = getCurrentUser();
   if (!user || !user.id) {
@@ -149,38 +179,36 @@ async function loadAll() {
       }
     );
     if (!res.ok) throw new Error("HTTP " + res.status);
-
     const json = await res.json();
-    if (!json.success) {
-      console.error("API loadAll error:", json.error);
-      alert("โหลดคำศัพท์ไม่สำเร็จ: " + (json.error || "unknown error"));
-      vocab = [];
-      return;
-    }
-
-    const rows = Array.isArray(json.rows) ? json.rows : [];
+    const rows = json.rows || [];
 
     vocab = rows.map((r) => ({
-      id: r.id,
+      id: r.id, // word_id
       word: r.word || r.eng || "",
       translation: r.translation || r.thai || "",
       correct: Number(r.correct || 0),
       wrong: Number(r.wrong || 0),
       lastSeen: r.lastSeen || null,
     }));
+
+    dedupeVocabInMemory();
   } catch (err) {
     console.error("loadAll() failed", err);
-    alert("โหลดคำศัพท์ไม่สำเร็จ (เช็ก Console ดู error เพิ่มเติม)");
     vocab = [];
   }
 }
 
-
-// เซฟ vocab ทั้งหมดไป Google Sheet
+// เซฟ vocab ทั้งหมดไป Google Sheet (upsert, ไม่ล้างถ้า vocab ว่าง)
 function saveAll() {
   const user = getCurrentUser();
   if (!user || !user.id) return;
+  if (!Array.isArray(vocab)) return;
+  if (vocab.length === 0) {
+    // ไม่มีคำอะไรจะเซฟ → ไม่เรียก backend เพื่อกันลบ stats
+    return;
+  }
 
+  dedupeVocabInMemory();
   updateStatsUI(); // อัปเดต UI ทันที
 
   const payload = {
@@ -217,7 +245,6 @@ document.querySelectorAll('.nav-link').forEach(t => {
     document.getElementById('panel-' + tab).style.display = 'block';
     refreshUI();
 
-    // ปิดเมนูแบบ smooth ใน mobile โดยให้ Bootstrap จัดการ
     const navCollapse = document.getElementById('mainNav');
     const navToggler = document.querySelector('.navbar-toggler');
     if (navCollapse && navCollapse.classList.contains('show') && navToggler) {
@@ -230,11 +257,9 @@ document.querySelectorAll('.nav-link').forEach(t => {
   Library functions
 -------------------------------*/
 
-// ตัว render จริง (เรียกตรง ๆ ตอน add / import / clear)
 function renderLibraryImmediate() {
   const list = document.getElementById('list');
 
-  // destroy Lottie เก่าก่อนเคลียร์ list เพื่อลด memory / CPU leak (ถ้าเคยมี)
   list.querySelectorAll('.lottie-icon').forEach(icon => {
     if (icon._lottieInstance) {
       icon._lottieInstance.destroy();
@@ -294,10 +319,8 @@ function renderLibraryImmediate() {
   });
 }
 
-// เวอร์ชัน debounce สำหรับ search (เรียกจาก oninput ใน HTML)
 window.renderLibrary = debounce(renderLibraryImmediate, 120);
 
-// helper: เช็กว่ามีคำนี้อยู่แล้วหรือยัง (เทียบเฉพาะ word, ไม่สนตัวพิมพ์เล็กใหญ่)
 function isDuplicateWord(word) {
   const w = String(word || '').trim().toLowerCase();
   if (!w) return false;
@@ -314,7 +337,6 @@ function addWord() {
     return;
   }
 
-  // กันคำซ้ำ
   if (isDuplicateWord(w)) {
     alert('มีคำนี้อยู่แล้วในคลัง: ' + w);
     return;
@@ -327,6 +349,8 @@ function addWord() {
     wrong: 0,
     lastSeen: Date.now()
   });
+
+  dedupeVocabInMemory();
   document.getElementById('inputWord').value = '';
   document.getElementById('inputTrans').value = '';
   saveAll();
@@ -342,7 +366,6 @@ function editItem(i) {
   const trimmedW = nw.trim();
   const trimmedT = nt.trim();
 
-  // ถ้าแก้แล้วไปชนคำอื่น
   if (
     trimmedW &&
     trimmedW.toLowerCase() !== it.word.trim().toLowerCase() &&
@@ -355,33 +378,975 @@ function editItem(i) {
   it.word = trimmedW;
   it.translation = trimmedT;
   it.lastSeen = Date.now();
+
+  dedupeVocabInMemory();
   saveAll();
   renderLibraryImmediate();
 }
 
-// ---------- แก้: ลบคำเดียว + ลบ stats ของคำนี้ผ่าน saveAll ----------
 function deleteItem(i) {
-  if (!confirm('ลบคำศัพท์นี้ทั้งหมด (รวมสถิติ) ?')) return;
-  vocab.splice(i, 1);   // ลบออกจาก vocab ของ user นี้
-  saveAll();            // backend จะเขียน words + user_word_stats ใหม่ของ user นี้
+  if (!confirm('ลบคำศัพท์?')) return;
+  vocab.splice(i, 1);
+  dedupeVocabInMemory();
+  saveAll();
   renderLibraryImmediate();
-  updateStatsUI();
 }
 
-// ---------- แก้: Clear ทั้งหมดของ user นี้ ----------
+// clearAll: ลบของ user จาก backend โดยตรง
 function clearAll() {
-  if (!confirm('ล้างคำศัพท์ทั้งหมดของ user นี้ (รวมสถิติทุกคำ)?')) return;
-  vocab = [];       // ล้าง vocab ของ user ปัจจุบัน
-  saveAll();        // backend จะลบทั้ง words + user_word_stats ของ user นี้
+  if (!confirm('ล้างคำศัพท์ทั้งหมดของคุณจากระบบ?')) return;
+
+  vocab = [];
   renderLibraryImmediate();
   updateStatsUI();
+
+  const user = getCurrentUser();
+  if (!user || !user.id) return;
+
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      action: 'clearAll',
+      userId: user.id
+    })
+  }).catch(err => {
+    console.error('clearAll() failed', err);
+  });
 }
 
 /* ------------------------------
   Import / Export CSV
 -------------------------------*/
-// ... (ส่วน Import / Export, Practice, Quiz, Audio, Stats ทั้งหมดเหมือนเดิมของคุณ)
-// (ไม่ขยายซ้ำอีก เพื่อให้ตอบไม่ยาวเกินไป – ใช้ของเดิมที่คุณมีได้เลย)
+
+function importItems(newItems) {
+  if (!newItems || !newItems.length) {
+    alert('ไม่พบคำที่จะนำเข้า');
+    return;
+  }
+
+  let added = 0;
+  let duplicated = 0;
+  const dupSamples = [];
+
+  newItems.forEach(row => {
+    const w = String(row.word || '').trim();
+    const t = String(row.translation || '').trim();
+    if (!w || !t) return;
+
+    if (isDuplicateWord(w)) {
+      duplicated++;
+      if (dupSamples.length < 5) dupSamples.push(w);
+      return;
+    }
+
+    vocab.push({
+      word: w,
+      translation: t,
+      correct: 0,
+      wrong: 0,
+      lastSeen: Date.now()
+    });
+    added++;
+  });
+
+  dedupeVocabInMemory();
+  saveAll();
+  renderLibraryImmediate();
+
+  let msg = `นำเข้าเรียบร้อย: เพิ่มใหม่ ${added} คำ`;
+  if (duplicated > 0) {
+    msg += `\nข้ามคำซ้ำ ${duplicated} คำ`;
+    if (dupSamples.length) {
+      msg += `\nตัวอย่างคำซ้ำ: ${dupSamples.join(', ')}`;
+    }
+  }
+  alert(msg);
+}
+
+function handleImportFile(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+
+  Papa.parse(f, {
+    header: true,
+    skipEmptyLines: true,
+    complete(results) {
+      const rows = results.data;
+      const items = [];
+      for (const r of rows) {
+        const W = r.Word ?? r.word ?? Object.values(r)[0];
+        const T = r.Translation ?? r.translation ?? Object.values(r)[1];
+        if (!W || !T) continue;
+        items.push({
+          word: String(W).trim(),
+          translation: String(T).trim()
+        });
+      }
+
+      if (!items.length) {
+        alert('ไม่พบคำในไฟล์');
+        return;
+      }
+
+      importItems(items);
+    },
+    error(err) {
+      alert('Import failed: ' + err.message);
+    }
+  });
+}
+
+function importFromPaste() {
+  const txt = document.getElementById('pasteCsv').value.trim();
+  if (!txt) {
+    alert('วาง CSV ก่อน');
+    return;
+  }
+
+  const parsed = Papa.parse(txt, { header: true, skipEmptyLines: true });
+  const rows = parsed.data;
+  const items = [];
+
+  for (const r of rows) {
+    const W = r.Word ?? r.word ?? Object.values(r)[0];
+    const T = r.Translation ?? r.translation ?? Object.values(r)[1];
+    if (!W || !T) continue;
+    items.push({
+      word: String(W).trim(),
+      translation: String(T).trim()
+    });
+  }
+
+  if (!items.length) {
+    alert('ไม่พบคำในข้อมูลที่วาง');
+    return;
+  }
+
+  importItems(items);
+}
+
+
+
+/* ------------------------------
+  Practice (flashcards)
+-------------------------------*/
+let practiceQueue = [],
+  practiceIndex = 0;
+let shuffleMode = false;
+
+// auto sound toggle สำหรับ practice & quiz
+let autoSoundPractice = true;
+let autoSoundQuiz = true;
+
+function toggleAutoSoundPractice(isOn) {
+  autoSoundPractice = !!isOn;
+}
+
+function toggleAutoSoundQuiz(isOn) {
+  autoSoundQuiz = !!isOn;
+}
+
+function toggleShuffle(btn) {
+  shuffleMode = !shuffleMode;
+  if (btn) {
+    btn.classList.toggle('btn-primary', shuffleMode);
+    btn.classList.toggle('btn-outline-secondary', !shuffleMode);
+    btn.setAttribute('aria-pressed', String(shuffleMode));
+    btn.textContent = shuffleMode ? 'Shuffle: ON' : 'Shuffle';
+  } else {
+    const b = document.getElementById('shuffleBtn');
+    if (b) toggleShuffle(b);
+  }
+
+  if (practiceQueue.length) {
+    if (shuffleMode) {
+      shuffleArray(practiceQueue);
+      practiceIndex = 0;
+      showPracticeCard();
+    } else {
+      const s = parseInt(document.getElementById('pStart').value) || 1;
+      const e = parseInt(document.getElementById('pEnd').value) || vocab.length;
+      const start = Math.max(1, s) - 1,
+        end = Math.min(vocab.length, e);
+      const curIdx = parseInt(
+        document.getElementById('practiceCard').dataset.idx || -1
+      );
+      practiceQueue = [];
+      for (let i = start; i < end; i++) practiceQueue.push(i);
+      practiceIndex = practiceQueue.indexOf(curIdx);
+      if (practiceIndex === -1) practiceIndex = 0;
+      showPracticeCard();
+    }
+  } else {
+    showPracticeCard();
+  }
+}
+
+function startPractice() {
+  if (!vocab.length) return alert('ไม่มีคำศัพท์');
+  const s = parseInt(document.getElementById('pStart').value) || 1;
+  const e = parseInt(document.getElementById('pEnd').value) || vocab.length;
+  const start = Math.max(1, s) - 1,
+    end = Math.min(vocab.length, e);
+  if (start >= end) return alert('ช่วงคำไม่ถูกต้อง');
+  practiceQueue = [];
+  for (let i = start; i < end; i++) practiceQueue.push(i);
+
+  if (shuffleMode) shuffleArray(practiceQueue);
+
+  practiceIndex = 0;
+  document.getElementById('practiceCard').style.display = 'block';
+  showPracticeCard();
+}
+
+function showPracticeCard() {
+  const pIDEl = document.getElementById('pID');
+  if (!practiceQueue.length) {
+    if (pIDEl) pIDEl.style.display = '';
+    document.getElementById('pWord').textContent = '';
+    document.getElementById('pTrans').textContent = '';
+    document.getElementById('pTrans').style.display = 'none';
+    document.getElementById('practiceCard').dataset.idx = -1;
+    document.getElementById('pCount').textContent = '0';
+    document.getElementById('pIndex').textContent = '0';
+    document.getElementById('pProgress').style.width = '0%';
+    return;
+  }
+
+  if (practiceIndex >= practiceQueue.length) practiceIndex = 0;
+  const idx = practiceQueue[practiceIndex];
+  const it = vocab[idx];
+
+  if (shuffleMode) {
+    if (pIDEl) pIDEl.style.display = 'none';
+  } else {
+    if (pIDEl) {
+      pIDEl.style.display = '';
+      pIDEl.textContent =
+        typeof idx === 'number' && idx >= 0 ? idx + 1 : '—';
+    }
+  }
+
+  document.getElementById('pWord').textContent = it ? it.word : '(no word)';
+  document.getElementById('pTrans').textContent = it ? it.translation : '';
+  document.getElementById('pTrans').style.display = 'none';
+  document.getElementById('practiceCard').dataset.idx = idx;
+  document.getElementById('pCount').textContent = practiceQueue.length;
+  document.getElementById(
+    'pIndex'
+  ).textContent = `${practiceIndex + 1} / ${practiceQueue.length}`;
+  const pct = Math.round(
+    ((practiceIndex + 1) / practiceQueue.length) * 100
+  );
+  document.getElementById('pProgress').style.width = pct + '%';
+
+  // เล่นเสียงอัตโนมัติ เฉพาะตอนที่เปิด auto sound ไว้
+  if (autoSoundPractice) {
+    setTimeout(() => {
+      try {
+        playEN('practice');
+      } catch (e) {
+        console.warn('TTS play failed', e);
+      }
+    }, 60);
+  }
+}
+
+function revealPractice() {
+  document.getElementById('pTrans').style.display = 'block';
+}
+function nextPractice() {
+  practiceIndex++;
+  if (practiceIndex >= practiceQueue.length) practiceIndex = 0;
+  showPracticeCard();
+}
+function shufflePractice() {
+  if (!practiceQueue.length) {
+    toggleShuffle(document.getElementById('shuffleBtn'));
+    return;
+  }
+  shuffleArray(practiceQueue);
+  practiceIndex = 0;
+  showPracticeCard();
+}
+function markKnown() {
+  const idx = parseInt(
+    document.getElementById('practiceCard').dataset.idx || -1
+  );
+  if (idx < 0) return;
+  vocab[idx].correct = (vocab[idx].correct || 0) + 1;
+  vocab[idx].lastSeen = Date.now();
+  saveAll();
+  nextPractice();
+}
+
+function markWrong() {
+  const idx = parseInt(
+    document.getElementById('practiceCard').dataset.idx || -1
+  );
+  if (idx < 0) return;
+
+  // กด Show อัตโนมัติ -> แสดงคำแปล
+  revealPractice();
+
+  // นับสถิติ wrong ตามปกติ
+  vocab[idx].wrong = (vocab[idx].wrong || 0) + 1;
+  vocab[idx].lastSeen = Date.now();
+  saveAll();
+
+  // รอให้เราเห็นคำตอบแป๊บหนึ่งแล้วค่อย Next ไปข้อถัดไป
+  setTimeout(() => {
+    nextPractice();
+  }, 800); // ปรับเวลาได้ตามชอบ เช่น 500, 1000 ms
+}
+
+/* ===== Keyboard shortcuts: Left = Known, Right = Wrong, Shift = sound ===== */
+document.addEventListener('keydown', function (e) {
+  const ae = document.activeElement;
+  const isTextField =
+    ae &&
+    (ae.tagName === 'INPUT' ||
+      ae.tagName === 'TEXTAREA' ||
+      ae.isContentEditable);
+
+  // ถ้าโฟกัสอยู่ใน input/textarea: ปิด shortcut ทั้งหมด ยกเว้นปุ่ม Shift (ใช้เล่นเสียงได้)
+  if (isTextField && e.key !== 'Shift') {
+    return;
+  }
+
+  // ซ้าย = Known
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    markWrong();
+    return;
+  }
+
+  // ขวา = Wrong
+  if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    markKnown();
+    return;
+  }
+
+  // Shift = เล่นเสียง EN (ตามหน้า) แม้โฟกัสอยู่ในช่องพิมพ์ก็ได้
+  if (e.key === 'Shift') {
+    e.preventDefault();
+
+    const practiceCard = document.getElementById('practiceCard');
+    const quizCard = document.getElementById('quizCard');
+
+    const practiceVisible =
+      practiceCard && practiceCard.offsetParent !== null;
+    const quizVisible = quizCard && quizCard.offsetParent !== null;
+
+    if (practiceVisible && !quizVisible) {
+      playEN('practice');
+      return;
+    }
+
+    if (quizVisible && !practiceVisible) {
+      playEN('quiz');
+      return;
+    }
+
+    // ถ้าเผื่ออนาคตดันเห็นทั้งคู่ ให้ priority กับ Quiz
+    if (quizVisible) {
+      playEN('quiz');
+      return;
+    }
+  }
+});
+
+
+function stopPractice() {
+  document.getElementById('practiceCard').style.display = 'none';
+}
+function practiceWeak() {
+  const weak = vocab
+    .map((it, i) => ({ it, i }))
+    .filter(x => (x.it.wrong || 0) >= 2)
+    .map(x => x.i);
+  if (!weak.length) return alert('ไม่มีคำที่ผิดบ่อย');
+  practiceQueue = weak;
+  practiceIndex = 0;
+  document.getElementById('practiceCard').style.display = 'block';
+  showPracticeCard();
+}
+
+/* ------------------------------
+  Quiz + spelling
+-------------------------------*/
+let quizQueue = [],
+  quizScore = 0,
+  quizTotal = 0,
+  quizCurrent = null,
+  sessionWrong = [],
+  quizRandomize = false,
+  quizFixedMode = null;
+
+function ensureQuizObj(q) {
+  if (!q) return null;
+
+  if (typeof q === 'object' && !Array.isArray(q)) {
+    if (q.item && (q.item.word !== undefined || q.item.translation !== undefined)) {
+      return {
+        idx:
+          q.idx !== undefined ? q.idx : q.i !== undefined ? q.i : -1,
+        item: {
+          word: String(q.item.word || ''),
+          translation: String(q.item.translation || '')
+        },
+        mode: q.mode,
+        options: q.options
+      };
+    }
+    const word =
+      q.word !== undefined ? q.word : q[0] !== undefined ? q[0] : '';
+    const translation =
+      q.translation !== undefined
+        ? q.translation
+        : q[1] !== undefined
+        ? q[1]
+        : '';
+    const idx =
+      q.idx !== undefined
+        ? q.idx
+        : q.i !== undefined
+        ? q.i
+        : typeof q[2] === 'number'
+        ? q[2]
+        : -1;
+    return {
+      idx: idx,
+      item: { word: String(word || ''), translation: String(translation || '') },
+      mode: q.mode,
+      options: q.options
+    };
+  }
+
+  if (Array.isArray(q)) {
+    let idx = null,
+      word = '',
+      translation = '';
+    if (typeof q[0] === 'number') {
+      idx = q[0];
+      word = q[1] || '';
+      translation = q[2] || '';
+    } else if (typeof q[q.length - 1] === 'number') {
+      idx = q[q.length - 1];
+      word = q[0] || '';
+      translation = q[1] || '';
+    } else {
+      word = q[0] || '';
+      translation = q[1] || '';
+    }
+    if (idx === null || idx === -1) {
+      const found = vocab.findIndex(
+        v =>
+          v.word === word &&
+          (translation ? v.translation === translation : true)
+      );
+      idx = found >= 0 ? found : -1;
+    }
+    return {
+      idx: idx,
+      item: { word: String(word || ''), translation: String(translation || '') }
+    };
+  }
+
+  return null;
+}
+
+function startQuiz() {
+  if (!vocab.length) return alert('ไม่มีคำศัพท์');
+  const s = parseInt(document.getElementById('qStart').value) || 1;
+  const e = parseInt(document.getElementById('qEnd').value) || vocab.length;
+  const start = Math.max(1, s) - 1,
+    end = Math.min(vocab.length, e);
+  if (start >= end) return alert('ช่วงคำไม่ถูกต้อง');
+
+  quizRandomize = document.getElementById('randomMode').checked;
+  const fixedMode = document.getElementById('qMode').value;
+  quizFixedMode = quizRandomize ? null : fixedMode;
+
+  quizQueue = [];
+  for (let i = start; i < end; i++) quizQueue.push(i);
+  shuffleArray(quizQueue);
+
+  quizTotal = quizQueue.length;
+  quizScore = 0;
+  sessionWrong = [];
+  updateSessionWrong();
+  document.getElementById('qScore').textContent = `${quizScore} / ${quizTotal}`;
+
+  document.getElementById('quizCard').style.display = 'block';
+  document.getElementById('spellingArea').style.display = 'none';
+  showNextQuiz(quizRandomize ? null : quizFixedMode);
+}
+
+function showNextQuiz(mode) {
+  if (!quizQueue.length) {
+    alert(`จบแบบทดสอบ! คะแนน: ${quizScore} / ${quizTotal}`);
+    renderSessionWrong();
+    return;
+  }
+  const idx = quizQueue.pop();
+  const it = vocab[idx];
+  let chosenMode = mode;
+  if (quizRandomize || !chosenMode) {
+    const modes = ['multiple', 'reverse', 'spelling', 'spelling-no-thai'];
+    chosenMode = modes[Math.floor(Math.random() * modes.length)];
+  }
+  quizCurrent = { idx, item: it, mode: chosenMode };
+  const modeLabel =
+    chosenMode === 'multiple'
+      ? 'EN → TH'
+      : chosenMode === 'reverse'
+      ? 'TH → EN'
+      : chosenMode === 'spelling'
+      ? 'Spelling EN'
+      : 'spelling-no-thai';
+  document.getElementById(
+    'qCurrentMode'
+  ).textContent = `Mode: ${modeLabel}`;
+
+  // เล่นเสียงอัตโนมัติ เฉพาะที่เปิด auto sound และไม่ใช่ reverse
+  if (chosenMode !== 'reverse' && autoSoundQuiz) {
+    setTimeout(() => {
+      try {
+        playEN('quiz');
+      } catch (e) {
+        console.warn('TTS failed', e);
+      }
+    }, 80);
+  }
+
+  if (chosenMode === 'spelling') {
+    renderSpelling(quizCurrent);
+  } else if (chosenMode === 'spelling-no-thai') {
+    renderSpellingNoTH(quizCurrent);
+  } else if (chosenMode === 'reverse') {
+    const options = [it.word];
+    const pool = vocab.map(v => v.word).filter(w => w !== it.word);
+    shuffleArray(pool);
+    for (let i = 0; i < pool.length && options.length < 4; i++) {
+      if (!options.includes(pool[i])) options.push(pool[i]);
+    }
+    while (options.length < 4) options.push('(no option)');
+    shuffleArray(options);
+    quizCurrent.options = options;
+    renderReverse(quizCurrent);
+  } else {
+    const options = [it.translation];
+    const pool = vocab
+      .map(v => v.translation)
+      .filter(t => t !== it.translation);
+    shuffleArray(pool);
+    for (let i = 0; i < pool.length && options.length < 4; i++) {
+      if (!options.includes(pool[i])) options.push(pool[i]);
+    }
+    while (options.length < 4) options.push('(no option)');
+    shuffleArray(options);
+    quizCurrent.options = options;
+    renderQuiz(quizCurrent);
+  }
+}
+
+function renderQuiz(q) {
+  document.getElementById('qWord').textContent = q.item.word;
+  document.getElementById('qHint').textContent = '';
+  document.getElementById('spellingArea').style.display = 'none';
+  const optsEl = document.getElementById('qOptions');
+  optsEl.innerHTML = '';
+  q.options.forEach(opt => {
+    const d = document.createElement('button');
+    d.className =
+      'btn btn-outline-secondary d-block mb-2 option';
+    d.textContent = opt;
+    d.onclick = () =>
+      evaluateQuiz(opt, q.item.translation, q.idx, d);
+    optsEl.appendChild(d);
+  });
+  const done = quizTotal - quizQueue.length;
+  const pct = Math.round((done / quizTotal) * 100);
+  document.getElementById('qProgress').style.width = pct + '%';
+}
+
+function renderReverse(q) {
+  document.getElementById('qWord').textContent = q.item.translation;
+  document.getElementById('spellingArea').style.display = 'none';
+  const optsEl = document.getElementById('qOptions');
+  optsEl.innerHTML = '';
+  q.options.forEach(opt => {
+    const d = document.createElement('button');
+    d.className =
+      'btn btn-outline-secondary d-block mb-2 option';
+    d.textContent = opt;
+    d.onclick = () => evaluateQuiz(opt, q.item.word, q.idx, d);
+    optsEl.appendChild(d);
+  });
+  const done = quizTotal - quizQueue.length;
+  const pct = Math.round((done / quizTotal) * 100);
+  document.getElementById('qProgress').style.width = pct + '%';
+}
+
+/* ---------- Spelling status indicator ---------- */
+
+function resetSpellingStatus() {
+  const wrapper = document.getElementById('spellingStatus');
+  if (!wrapper) return;
+  wrapper.classList.remove('visible', 'is-correct', 'is-wrong');
+  const title = document.getElementById('spellingStatusTitle');
+  const detail = document.getElementById('spellingStatusDetail');
+  if (title) title.textContent = '';
+  if (detail) detail.textContent = '';
+}
+
+function showSpellingStatus(kind, word, detailText) {
+  const wrapper = document.getElementById('spellingStatus');
+  const title = document.getElementById('spellingStatusTitle');
+  const detail = document.getElementById('spellingStatusDetail');
+  const icon = document.getElementById('spellingStatusIcon');
+  if (!wrapper || !title || !detail || !icon) return;
+
+  wrapper.classList.remove('is-correct', 'is-wrong');
+
+  if (kind === 'correct') {
+    wrapper.classList.add('is-correct');
+    title.textContent = 'ถูกต้อง';
+    icon.textContent = '✓';
+  } else if (kind === 'wrong') {
+    wrapper.classList.add('is-wrong');
+    title.textContent = 'ผิด';
+    icon.textContent = '!';
+  }
+
+  detail.textContent = detailText || word || '';
+  wrapper.classList.add('visible');
+}
+
+/* ---------- Spelling renderers ---------- */
+
+function renderSpelling(q) {
+  resetSpellingStatus();
+
+  const qHintEl = document.getElementById('qHint');
+  qHintEl.textContent = q.item.translation;
+  qHintEl.style.display = 'block';
+
+  document.getElementById('qWord').textContent = '';
+  document.getElementById('qBlanks').innerHTML = '';
+  document.getElementById('spellingInput').value = '';
+  document.getElementById('spellingFeedback').textContent = '';
+  document.getElementById('spellingArea').style.display = 'block';
+  document.getElementById('qOptions').innerHTML = '';
+  const word = q.item.word;
+  const revealCount = Math.min(2, Math.floor(word.length / 4));
+  const revealPositions = new Set();
+  while (revealPositions.size < revealCount) {
+    revealPositions.add(Math.floor(Math.random() * word.length));
+  }
+  for (let i = 0; i < word.length; i++) {
+    const ch = word[i];
+    const span = document.createElement('div');
+    span.className = 'blank me-1';
+    span.textContent = revealPositions.has(i) ? ch : '_';
+    document.getElementById('qBlanks').appendChild(span);
+  }
+  const done = quizTotal - quizQueue.length;
+  const pct = Math.round((done / quizTotal) * 100);
+  document.getElementById('qProgress').style.width = pct + '%';
+  setTimeout(() => document.getElementById('spellingInput').focus(), 60);
+}
+
+function renderSpellingNoTH(q) {
+  resetSpellingStatus();
+
+  const qHintEl = document.getElementById('qHint');
+  qHintEl.textContent = '';
+  qHintEl.style.display = 'none';
+
+  document.getElementById('qWord').textContent = '';
+  document.getElementById('qBlanks').innerHTML = '';
+  document.getElementById('spellingInput').value = '';
+  document.getElementById('spellingFeedback').textContent = '';
+  document.getElementById('spellingArea').style.display = 'block';
+  document.getElementById('qOptions').innerHTML = '';
+  const word = q.item.word;
+  const revealCount = Math.min(2, Math.floor(word.length / 4));
+  const revealPositions = new Set();
+  while (revealPositions.size < revealCount) {
+    revealPositions.add(Math.floor(Math.random() * word.length));
+  }
+  for (let i = 0; i < word.length; i++) {
+    const ch = word[i];
+    const span = document.createElement('div');
+    span.className = 'blank me-1';
+    span.textContent = revealPositions.has(i) ? ch : '_';
+    document.getElementById('qBlanks').appendChild(span);
+  }
+  const done = quizTotal - quizQueue.length;
+  const pct = Math.round((done / quizTotal) * 100);
+  document.getElementById('qProgress').style.width = pct + '%';
+  setTimeout(() => document.getElementById('spellingInput').focus(), 60);
+}
+
+function submitSpelling() {
+  if (!quizCurrent) return;
+  const input = document
+    .getElementById('spellingInput')
+    .value.trim();
+  const correctObj = ensureQuizObj(quizCurrent);
+  const idx =
+    correctObj && typeof correctObj.idx === 'number'
+      ? correctObj.idx
+      : (quizCurrent && quizCurrent.idx) || -1;
+  evaluateSpelling(input, correctObj, idx);
+}
+
+// ให้กด Enter เพื่อ Submit ได้
+const spellingInputEl = document.getElementById('spellingInput');
+if (spellingInputEl) {
+  spellingInputEl.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitSpelling();
+    }
+  });
+}
+
+function revealSpelling() {
+  if (!quizCurrent) return;
+
+  const q = ensureQuizObj(quizCurrent);
+  const idx = q ? q.idx : -1;
+  const word = q && q.item ? q.item.word : '';
+  const fb = document.getElementById('spellingFeedback');
+
+  let detailLine = word;
+  if (idx >= 0 && vocab[idx] && vocab[idx].translation) {
+    detailLine = `${word} (${vocab[idx].translation})`;
+  }
+
+  if (fb) fb.textContent = `เฉลย: ${detailLine}`;
+  showSpellingStatus('wrong', word, detailLine);
+
+  if (idx >= 0 && vocab[idx]) {
+    vocab[idx].wrong = (vocab[idx].wrong || 0) + 1;
+    vocab[idx].lastSeen = Date.now();
+    saveAll();
+    sessionWrong.push({
+      idx: idx,
+      word: vocab[idx].word,
+      correct: vocab[idx].translation
+    });
+    updateSessionWrong();
+  }
+
+  const auto = document.getElementById('autoNext').checked;
+  if (auto) {
+    setTimeout(
+      () => showNextQuiz(quizRandomize ? null : quizFixedMode),
+      900
+    );
+  }
+}
+
+function evaluateSpelling(input, correctObj, idx) {
+  const inputEl = document.getElementById('spellingInput');
+  if (!inputEl) return;
+
+  inputEl.disabled = true;
+  const auto = document.getElementById('autoNext').checked;
+  const fb = document.getElementById('spellingFeedback');
+
+  const correctItem =
+    correctObj && correctObj.item
+      ? correctObj.item
+      : typeof correctObj === 'string'
+      ? { word: String(correctObj), translation: '' }
+      : null;
+
+  const correctWord = correctItem ? correctItem.word || '' : '';
+  const correctTrans = correctItem ? correctItem.translation || '' : '';
+
+  const normalizedInput = String(input || '').trim().toLowerCase();
+  const normalizedCorrect = String(correctWord || '')
+    .trim()
+    .toLowerCase();
+
+  if (normalizedInput === normalizedCorrect) {
+    const detailLine = correctTrans
+      ? `${correctWord} — ${correctTrans}`
+      : correctWord;
+
+    if (fb) fb.textContent = `ถูกต้อง — ${detailLine}`;
+    showSpellingStatus('correct', correctWord, detailLine);
+
+    if (idx >= 0 && vocab[idx]) {
+      vocab[idx].correct = (vocab[idx].correct || 0) + 1;
+    }
+    quizScore++;
+  } else {
+    const detailLine = correctTrans
+      ? `${correctWord} (${correctTrans})`
+      : correctWord;
+
+    if (fb) fb.textContent = `ผิด — คำที่ถูกต้อง: ${detailLine}`;
+    showSpellingStatus('wrong', correctWord, detailLine);
+
+    if (idx >= 0 && vocab[idx]) {
+      vocab[idx].wrong = (vocab[idx].wrong || 0) + 1;
+      sessionWrong.push({
+        idx,
+        word: vocab[idx].word,
+        correct: vocab[idx].translation
+      });
+    }
+  }
+
+  if (idx >= 0 && vocab[idx]) {
+    vocab[idx].lastSeen = Date.now();
+  }
+
+  saveAll();
+  document.getElementById('qScore').textContent = `${quizScore} / ${quizTotal}`;
+  updateSessionWrong();
+
+  if (auto) {
+    setTimeout(() => {
+      inputEl.disabled = false;
+      showNextQuiz(quizRandomize ? null : quizFixedMode);
+    }, 900);
+  } else {
+    setTimeout(() => {
+      inputEl.disabled = false;
+    }, 250);
+  }
+}
+
+function evaluateQuiz(selected, correct, idx, el) {
+  document
+    .querySelectorAll('#qOptions .option')
+    .forEach(o => (o.onclick = null));
+  const auto = document.getElementById('autoNext').checked;
+  if (selected === correct) {
+    el.classList.add('correct');
+    quizScore++;
+    if (idx >= 0 && vocab[idx])
+      vocab[idx].correct = (vocab[idx].correct || 0) + 1;
+  } else {
+    el.classList.add('wrong');
+    if (idx >= 0 && vocab[idx])
+      vocab[idx].wrong = (vocab[idx].wrong || 0) + 1;
+    document
+      .querySelectorAll('#qOptions .option')
+      .forEach(o => {
+        if (o.textContent === correct) o.classList.add('correct');
+      });
+    if (idx >= 0 && vocab[idx])
+      sessionWrong.push({
+        idx,
+        word: vocab[idx].word,
+        correct: vocab[idx].translation
+      });
+  }
+  if (idx >= 0 && vocab[idx]) vocab[idx].lastSeen = Date.now();
+  saveAll();
+  document.getElementById('qScore').textContent = `${quizScore} / ${quizTotal}`;
+  updateSessionWrong();
+  if (auto) {
+    setTimeout(
+      () => showNextQuiz(quizRandomize ? null : quizFixedMode),
+      700
+    );
+  } else {
+    const nextBtn = document.createElement('button');
+    nextBtn.textContent = 'Next';
+    nextBtn.className = 'btn btn-outline-primary mt-2';
+    nextBtn.onclick = () => {
+      nextBtn.remove();
+      showNextQuiz(quizRandomize ? null : quizFixedMode);
+    };
+    document.getElementById('qOptions').appendChild(nextBtn);
+  }
+}
+
+function updateSessionWrong() {
+  const el = document.getElementById('sessionWrong');
+  el.innerHTML = '';
+  sessionWrong.forEach(w => {
+    const d = document.createElement('div');
+    d.className = 'mb-1 d-flex align-items-center';
+    const badge = document.createElement('span');
+    badge.className = 'badge bg-danger rounded-pill me-2';
+    badge.style.minWidth = '28px';
+    badge.style.textAlign = 'center';
+    badge.style.display = 'inline-block';
+    badge.textContent =
+      typeof w.idx === 'number' && w.idx >= 0 ? w.idx + 1 : '';
+    const txt = document.createElement('span');
+    txt.textContent = `${w.word} → ${w.correct}`;
+    d.appendChild(badge);
+    d.appendChild(txt);
+    el.appendChild(d);
+  });
+}
+
+function renderSessionWrong() {
+  updateSessionWrong();
+}
+
+function retryWrong() {
+  const wrongIdx = vocab
+    .map((it, i) => ({ it, i }))
+    .filter(x => (x.it.wrong || 0) >= 1)
+    .map(x => x.i);
+  if (!wrongIdx.length) return alert('ไม่มีคำที่ผิดบ่อย');
+  quizQueue = [...wrongIdx];
+  shuffleArray(quizQueue);
+  quizTotal = quizQueue.length;
+  quizScore = 0;
+  sessionWrong = [];
+  document.getElementById('qScore').textContent = `${quizScore} / ${quizTotal}`;
+  document.getElementById('quizCard').style.display = 'block';
+  showNextQuiz(quizRandomize ? null : quizFixedMode);
+}
+
+/* ------------------------------
+  Audio (EN TTS only)
+-------------------------------*/
+let enVoice = null;
+function initVoices() {
+  const voices = speechSynthesis.getVoices();
+  enVoice = voices.find(v => v.lang && v.lang.startsWith('en')) || null;
+}
+speechSynthesis.onvoiceschanged = initVoices;
+initVoices();
+
+function playEN(mode) {
+  let text = null;
+  if (mode === 'practice') {
+    const idx = parseInt(
+      document.getElementById('practiceCard').dataset.idx || -1
+    );
+    if (idx >= 0) text = vocab[idx].word;
+  } else if (mode === 'quiz') {
+    const q = ensureQuizObj(quizCurrent);
+    if (q && q.item) text = q.item.word;
+  } else if (typeof mode === 'number') {
+    text = vocab[mode] && vocab[mode].word;
+  }
+  if (!text) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'en-US';
+  if (enVoice) u.voice = enVoice;
+  speechSynthesis.speak(u);
+}
+function playENIndex(i) {
+  playEN(i);
+}
 
 /* ------------------------------
   Stats & helpers
@@ -404,10 +1369,74 @@ function updateStatsUI() {
   renderWeakList();
 }
 
-// ... (renderWeakList, practiceSingle, resetStats, shuffleArray, escapeHtml, refreshUI เหมือนเดิม)
+function renderWeakList() {
+  const el = document.getElementById('weakList');
+  el.innerHTML = '';
+  const weak = vocab
+    .map((it, i) => ({ ...it, i }))
+    .filter(x => (x.wrong || 0) >= 2)
+    .sort((a, b) => (b.wrong || 0) - (a.wrong || 0));
+  weak.forEach(w => {
+    const div = document.createElement('div');
+    div.className =
+      'list-group-item d-flex justify-content-between align-items-center';
+    div.innerHTML = `<div class="d-flex gap-3 align-items-center"><div class="badge bg-light text-muted" style="min-width:44px;text-align:center">${
+      w.i + 1
+    }</div><div><div class="fw-bold text-word">${escapeHtml(
+      w.word
+    )}</div><div class="small text-muted text-list">${escapeHtml(
+      w.translation
+    )}</div><div class="small">Wrong: ${
+      w.wrong || 0
+    }</div></div></div>
+        <div class="d-flex gap-2"><button class="btn btn-primary btn-sm" onclick="practiceSingle(${
+          w.i
+        })">Practice</button><button class="btn btn-outline-secondary btn-sm" onclick="editItem(${
+      w.i
+    })">Edit</button></div>`;
+    el.appendChild(div);
+  });
+}
 
-// ❌ ลบอันนี้ทิ้งไปเลย (ไม่ต้องมีแล้ว) ❌
-// window.addEventListener("beforeunload", () => saveAll());
+function practiceSingle(i) {
+  practiceQueue = [i];
+  practiceIndex = 0;
+  document.getElementById('practiceCard').style.display = 'block';
+  showPracticeCard();
+}
+
+function resetStats() {
+  if (!confirm('Reset stats?')) return;
+  vocab.forEach(i => {
+    i.correct = 0;
+    i.wrong = 0;
+  });
+  saveAll();
+  updateStatsUI();
+  alert('Reset done');
+}
+
+function shuffleArray(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
+}
+
+function refreshUI() {
+  renderLibraryImmediate();
+  updateStatsUI();
+  updateSessionWrong();
+}
+
+window.addEventListener("beforeunload", () => saveAll());
 
 // โหลดข้อมูลครั้งแรกจาก API
 async function initApp() {
