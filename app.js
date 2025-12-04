@@ -132,6 +132,7 @@ function logout() {
 }
 
 // โหลด vocab จาก Google Sheet (words + stats ของ user)
+// โหลด vocab จาก Google Sheet (words + stats ของ user)
 async function loadAll() {
   const user = getCurrentUser();
   if (!user || !user.id) {
@@ -148,11 +149,19 @@ async function loadAll() {
       }
     );
     if (!res.ok) throw new Error("HTTP " + res.status);
+
     const json = await res.json();
-    const rows = json.rows || [];
+    if (!json.success) {
+      console.error("API loadAll error:", json.error);
+      alert("โหลดคำศัพท์ไม่สำเร็จ: " + (json.error || "unknown error"));
+      vocab = [];
+      return;
+    }
+
+    const rows = Array.isArray(json.rows) ? json.rows : [];
 
     vocab = rows.map((r) => ({
-      id: r.id, // word_id
+      id: r.id,
       word: r.word || r.eng || "",
       translation: r.translation || r.thai || "",
       correct: Number(r.correct || 0),
@@ -161,9 +170,11 @@ async function loadAll() {
     }));
   } catch (err) {
     console.error("loadAll() failed", err);
+    alert("โหลดคำศัพท์ไม่สำเร็จ (เช็ก Console ดู error เพิ่มเติม)");
     vocab = [];
   }
 }
+
 
 // เซฟ vocab ทั้งหมดไป Google Sheet
 function saveAll() {
