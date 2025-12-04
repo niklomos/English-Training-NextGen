@@ -107,10 +107,7 @@ function dedupeVocabInMemory() {
       const prev = map.get(key);
       const merged = { ...prev };
 
-      // เลือก id ที่มีอยู่
       merged.id = item.id || prev.id || null;
-
-      // merge stats แบบเอาค่าที่มากกว่า
       merged.correct = Math.max(
         Number(prev.correct || 0),
         Number(item.correct || 0)
@@ -119,11 +116,7 @@ function dedupeVocabInMemory() {
         Number(prev.wrong || 0),
         Number(item.wrong || 0)
       );
-
-      // lastSeen ล่าสุด
       merged.lastSeen = item.lastSeen || prev.lastSeen || null;
-
-      // translation ล่าสุดถ้าไม่ว่าง
       merged.translation = String(item.translation || prev.translation || '');
 
       map.set(key, merged);
@@ -205,10 +198,15 @@ async function loadAll() {
   }
 }
 
-// เซฟ vocab ทั้งหมดไป Google Sheet
+// เซฟ vocab ทั้งหมดไป Google Sheet (upsert, ไม่ล้างถ้า vocab ว่าง)
 function saveAll() {
   const user = getCurrentUser();
   if (!user || !user.id) return;
+  if (!Array.isArray(vocab)) return;
+  if (vocab.length === 0) {
+    // ไม่มีคำอะไรจะเซฟ → ไม่เรียก backend เพื่อกันลบ stats
+    return;
+  }
 
   dedupeVocabInMemory();
   updateStatsUI(); // อัปเดต UI ทันที
@@ -247,7 +245,6 @@ document.querySelectorAll('.nav-link').forEach(t => {
     document.getElementById('panel-' + tab).style.display = 'block';
     refreshUI();
 
-    // ปิดเมนูแบบ smooth ใน mobile โดยให้ Bootstrap จัดการ
     const navCollapse = document.getElementById('mainNav');
     const navToggler = document.querySelector('.navbar-toggler');
     if (navCollapse && navCollapse.classList.contains('show') && navToggler) {
@@ -263,7 +260,6 @@ document.querySelectorAll('.nav-link').forEach(t => {
 function renderLibraryImmediate() {
   const list = document.getElementById('list');
 
-  // destroy Lottie เก่าก่อนเคลียร์ list
   list.querySelectorAll('.lottie-icon').forEach(icon => {
     if (icon._lottieInstance) {
       icon._lottieInstance.destroy();
@@ -323,10 +319,8 @@ function renderLibraryImmediate() {
   });
 }
 
-// เวอร์ชัน debounce สำหรับ search
 window.renderLibrary = debounce(renderLibraryImmediate, 120);
 
-// helper: เช็กว่ามีคำนี้อยู่แล้วหรือยัง (เทียบเฉพาะ word)
 function isDuplicateWord(word) {
   const w = String(word || '').trim().toLowerCase();
   if (!w) return false;
@@ -398,11 +392,27 @@ function deleteItem(i) {
   renderLibraryImmediate();
 }
 
+// clearAll: ลบของ user จาก backend โดยตรง
 function clearAll() {
-  if (!confirm('ล้างทั้งหมด?')) return;
+  if (!confirm('ล้างคำศัพท์ทั้งหมดของคุณจากระบบ?')) return;
+
   vocab = [];
-  saveAll();
   renderLibraryImmediate();
+  updateStatsUI();
+
+  const user = getCurrentUser();
+  if (!user || !user.id) return;
+
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      action: 'clearAll',
+      userId: user.id
+    })
+  }).catch(err => {
+    console.error('clearAll() failed', err);
+  });
 }
 
 /* ------------------------------
@@ -516,50 +526,6 @@ function importFromPaste() {
   importItems(items);
 }
 
-function autoFixPaste() {
-  const txt = document.getElementById('pasteCsv').value;
-  if (!txt) return alert('วางข้อความก่อน');
-  try {
-    if (/%[0-9A-F]{2}/i.test(txt)) {
-      document.getElementById('pasteCsv').value = decodeURIComponent(txt);
-      alert('decodeURIComponent applied');
-      return;
-    }
-    document.getElementById('pasteCsv').value = decodeURIComponent(escape(txt));
-    alert('attempted latin1->utf8 conversion');
-  } catch (e) {
-    alert('ไม่สามารถแปลงอัตโนมัติได้');
-  }
-}
-
-function exportCSV() {
-  if (!vocab.length) return alert('ไม่มีคำศัพท์');
-  const rows = vocab.map(i => ({ Word: i.word, Translation: i.translation }));
-  const csv = Papa.unparse(rows);
-  const blob = new Blob(['\uFEFF' + csv], {
-    type: 'text/csv;charset=utf-8;'
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'vocabulary.csv';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-async function copyCSV() {
-  if (!vocab.length) return alert('ไม่มีคำศัพท์');
-  const rows = vocab.map(i => ({ Word: i.word, Translation: i.translation }));
-  const csv = Papa.unparse(rows);
-  try {
-    await navigator.clipboard.writeText(csv);
-    alert('คัดลอกเรียบร้อย');
-  } catch (e) {
-    alert('คัดลอกล้มเหลว');
-  }
-}
 
 
 /* ------------------------------
