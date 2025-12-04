@@ -94,6 +94,44 @@ const API_URL =
 // vocab ของ user ปัจจุบัน
 let vocab = [];
 
+// ----- helper: ลบคำซ้ำใน vocab (ตาม word, ไม่สนตัวพิมพ์ใหญ่เล็ก) -----
+function dedupeVocabInMemory() {
+  const map = new Map(); // key = wordLower
+  vocab.forEach(item => {
+    const eng = String(item.word || '').trim();
+    if (!eng) return;
+    const key = eng.toLowerCase();
+    if (!map.has(key)) {
+      map.set(key, { ...item });
+    } else {
+      const prev = map.get(key);
+      const merged = { ...prev };
+
+      // เลือก id ที่มีอยู่
+      merged.id = item.id || prev.id || null;
+
+      // merge stats แบบเอาค่าที่มากกว่า
+      merged.correct = Math.max(
+        Number(prev.correct || 0),
+        Number(item.correct || 0)
+      );
+      merged.wrong = Math.max(
+        Number(prev.wrong || 0),
+        Number(item.wrong || 0)
+      );
+
+      // lastSeen ล่าสุด
+      merged.lastSeen = item.lastSeen || prev.lastSeen || null;
+
+      // translation ล่าสุดถ้าไม่ว่าง
+      merged.translation = String(item.translation || prev.translation || '');
+
+      map.set(key, merged);
+    }
+  });
+  vocab = Array.from(map.values());
+}
+
 // ดึง user ปัจจุบันจาก localStorage
 function getCurrentUser() {
   try {
@@ -128,14 +166,14 @@ function updateUserUI() {
 // logout
 function logout() {
   localStorage.removeItem("vt_user");
-  window.location.href = "index.html";
+  window.location.href = "login.html";
 }
 
 // โหลด vocab จาก Google Sheet (words + stats ของ user)
 async function loadAll() {
   const user = getCurrentUser();
   if (!user || !user.id) {
-    window.location.href = "index.html";
+    window.location.href = "login.html";
     return;
   }
 
@@ -159,6 +197,8 @@ async function loadAll() {
       wrong: Number(r.wrong || 0),
       lastSeen: r.lastSeen || null,
     }));
+
+    dedupeVocabInMemory();
   } catch (err) {
     console.error("loadAll() failed", err);
     vocab = [];
@@ -170,6 +210,7 @@ function saveAll() {
   const user = getCurrentUser();
   if (!user || !user.id) return;
 
+  dedupeVocabInMemory();
   updateStatsUI(); // อัปเดต UI ทันที
 
   const payload = {
@@ -189,8 +230,6 @@ function saveAll() {
     console.error("saveAll() failed", err);
   });
 }
-
-
 
 /* ------------------------------
   Tab handling (uses data-tab attributes)
@@ -221,11 +260,10 @@ document.querySelectorAll('.nav-link').forEach(t => {
   Library functions
 -------------------------------*/
 
-// ตัว render จริง (เรียกตรง ๆ ตอน add / import / clear)
 function renderLibraryImmediate() {
   const list = document.getElementById('list');
 
-  // destroy Lottie เก่าก่อนเคลียร์ list เพื่อลด memory / CPU leak (ถ้าเคยมี)
+  // destroy Lottie เก่าก่อนเคลียร์ list
   list.querySelectorAll('.lottie-icon').forEach(icon => {
     if (icon._lottieInstance) {
       icon._lottieInstance.destroy();
@@ -285,10 +323,10 @@ function renderLibraryImmediate() {
   });
 }
 
-// เวอร์ชัน debounce สำหรับ search (เรียกจาก oninput ใน HTML)
+// เวอร์ชัน debounce สำหรับ search
 window.renderLibrary = debounce(renderLibraryImmediate, 120);
 
-// helper: เช็กว่ามีคำนี้อยู่แล้วหรือยัง (เทียบเฉพาะ word, ไม่สนตัวพิมพ์เล็กใหญ่)
+// helper: เช็กว่ามีคำนี้อยู่แล้วหรือยัง (เทียบเฉพาะ word)
 function isDuplicateWord(word) {
   const w = String(word || '').trim().toLowerCase();
   if (!w) return false;
@@ -305,7 +343,6 @@ function addWord() {
     return;
   }
 
-  // กันคำซ้ำ
   if (isDuplicateWord(w)) {
     alert('มีคำนี้อยู่แล้วในคลัง: ' + w);
     return;
@@ -318,6 +355,8 @@ function addWord() {
     wrong: 0,
     lastSeen: Date.now()
   });
+
+  dedupeVocabInMemory();
   document.getElementById('inputWord').value = '';
   document.getElementById('inputTrans').value = '';
   saveAll();
@@ -333,7 +372,6 @@ function editItem(i) {
   const trimmedW = nw.trim();
   const trimmedT = nt.trim();
 
-  // ถ้าแก้แล้วไปชนคำอื่น
   if (
     trimmedW &&
     trimmedW.toLowerCase() !== it.word.trim().toLowerCase() &&
@@ -346,6 +384,8 @@ function editItem(i) {
   it.word = trimmedW;
   it.translation = trimmedT;
   it.lastSeen = Date.now();
+
+  dedupeVocabInMemory();
   saveAll();
   renderLibraryImmediate();
 }
@@ -353,6 +393,7 @@ function editItem(i) {
 function deleteItem(i) {
   if (!confirm('ลบคำศัพท์?')) return;
   vocab.splice(i, 1);
+  dedupeVocabInMemory();
   saveAll();
   renderLibraryImmediate();
 }
@@ -368,8 +409,6 @@ function clearAll() {
   Import / Export CSV
 -------------------------------*/
 
-// import คำหลายคำแบบกันคำซ้ำ
-// newItems = [{word:'...', translation:'...'}, ...]
 function importItems(newItems) {
   if (!newItems || !newItems.length) {
     alert('ไม่พบคำที่จะนำเข้า');
@@ -401,6 +440,7 @@ function importItems(newItems) {
     added++;
   });
 
+  dedupeVocabInMemory();
   saveAll();
   renderLibraryImmediate();
 
@@ -439,7 +479,6 @@ function handleImportFile(e) {
         return;
       }
 
-      // เพิ่มแบบกันคำซ้ำ
       importItems(items);
     },
     error(err) {
@@ -474,7 +513,6 @@ function importFromPaste() {
     return;
   }
 
-  // เพิ่มแบบกันคำซ้ำ
   importItems(items);
 }
 
@@ -522,6 +560,7 @@ async function copyCSV() {
     alert('คัดลอกล้มเหลว');
   }
 }
+
 
 /* ------------------------------
   Practice (flashcards)
