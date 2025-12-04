@@ -89,7 +89,7 @@ themeToggle && themeToggle.addEventListener('click', toggleTheme);
 // Data model & storage (Google Sheet + multi-user)
 // ------------------------------
 const API_URL =
-  "https://script.google.com/macros/s/AKfycbxtWWFud-p8PBgSYrkH_ansdCaHKXrwqVZ9os50RKy6x6hg34y8EfDkHqmh5E46d1f9vQ/exec";
+  "https://script.google.com/macros/s/AKfycbxDQj4g7KH82V-2N9YyoVEWIwyIEAv8wr-DkiCOvL5mxvP9B1C-ifSKkohRVZcF_hqjug/exec";
 
 // vocab ของ user ปัจจุบัน
 let vocab = [];
