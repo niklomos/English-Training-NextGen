@@ -159,14 +159,14 @@ function updateUserUI() {
 // logout
 function logout() {
   localStorage.removeItem("vt_user");
-  window.location.href = "login.html";
+  window.location.href = "index.html";
 }
 
 // โหลด vocab จาก Google Sheet (words + stats ของ user)
 async function loadAll() {
   const user = getCurrentUser();
   if (!user || !user.id) {
-    window.location.href = "login.html";
+    window.location.href = "index.html";
     return;
   }
 
