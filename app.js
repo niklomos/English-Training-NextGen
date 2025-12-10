@@ -88,19 +88,18 @@ themeToggle && themeToggle.addEventListener('click', toggleTheme);
 // Data model & storage
 // ------------------------------
 const API_URL =
-  "https://script.google.com/macros/s/AKfycbxF2M9zo8CGTEeHpmNJJtm0yAdg2VzDdQvpqqNBD0pNgS51NjseavEdsfieXt5tyu0bzg/exec";
+  'https://script.google.com/macros/s/AKfycbxF2M9zo8CGTEeHpmNJJtm0yAdg2VzDdQvpqqNBD0pNgS51NjseavEdsfieXt5tyu0bzg/exec';
 
 let vocab = []; // words ของ user ปัจจุบัน
 
 // ------------------------------
 // Loading overlay helpers
-//  (ใช้กับ div#loadingScreen ใน app.html)
 // ------------------------------
 function getLoadingElements() {
   return {
-    screen: document.getElementById("loadingScreen"),
-    bar: document.getElementById("loadProgressBar"),
-    text: document.getElementById("loadProgressText"),
+    screen: document.getElementById('loadingScreen'),
+    bar: document.getElementById('loadProgressBar'),
+    text: document.getElementById('loadProgressText')
   };
 }
 
@@ -109,36 +108,35 @@ function setLoadingProgress(percent, message) {
   if (!bar || !text) return;
 
   const p = Math.max(0, Math.min(100, Math.round(percent)));
-  bar.style.width = p + "%";
-  bar.setAttribute("aria-valuenow", p);
+  bar.style.width = p + '%';
+  bar.setAttribute('aria-valuenow', p);
 
-  const base = message || "กำลังโหลดคำศัพท์…";
+  const base = message || 'กำลังโหลดคำศัพท์…';
   text.textContent = `${base} ${p}%`;
 }
 
 function showLoading(message) {
   const { screen } = getLoadingElements();
   if (!screen) return;
-  screen.style.display = "flex";
-  setLoadingProgress(5, message || "กำลังเชื่อมต่อเซิร์ฟเวอร์…");
+  screen.style.display = 'flex';
+  setLoadingProgress(5, message || 'กำลังเชื่อมต่อเซิร์ฟเวอร์…');
 }
 
 function hideLoading() {
   const { screen } = getLoadingElements();
   if (!screen) return;
 
-  // ดันเป็น 100% ให้รู้สึกจบแล้วค่อยหาย
-  setLoadingProgress(100, "โหลดเสร็จแล้ว");
+  setLoadingProgress(100, 'โหลดเสร็จแล้ว');
   setTimeout(() => {
-    screen.style.display = "none";
-    setLoadingProgress(0, ""); // reset รอบต่อไป
+    screen.style.display = 'none';
+    setLoadingProgress(0, '');
   }, 300);
 }
 
 // --------- user helpers ----------
 function getCurrentUser() {
   try {
-    return JSON.parse(localStorage.getItem("vt_user") || "null");
+    return JSON.parse(localStorage.getItem('vt_user') || 'null');
   } catch (e) {
     return null;
   }
@@ -146,9 +144,9 @@ function getCurrentUser() {
 
 function updateUserUI() {
   const u = getCurrentUser();
-  const pill = document.getElementById("userPill");
-  const nameEl = document.getElementById("userName");
-  const avatarEl = document.getElementById("userAvatar");
+  const pill = document.getElementById('userPill');
+  const nameEl = document.getElementById('userName');
+  const avatarEl = document.getElementById('userAvatar');
 
   if (!pill || !nameEl || !avatarEl) return;
 
@@ -156,18 +154,18 @@ function updateUserUI() {
     const name = (u.display_name || u.username).trim();
     nameEl.textContent = name;
 
-    const initial = name ? name.charAt(0).toUpperCase() : "?";
+    const initial = name ? name.charAt(0).toUpperCase() : '?';
     avatarEl.textContent = initial;
 
-    pill.style.display = "flex";
+    pill.style.display = 'flex';
   } else {
-    pill.style.display = "none";
+    pill.style.display = 'none';
   }
 }
 
 function logout() {
-  localStorage.removeItem("vt_user");
-  window.location.href = "index.html";
+  localStorage.removeItem('vt_user');
+  window.location.href = 'index.html';
 }
 
 // ------------------------------
@@ -176,42 +174,38 @@ function logout() {
 async function loadAll() {
   const user = getCurrentUser();
   if (!user || !user.id) {
-    window.location.href = "index.html";
+    window.location.href = 'index.html';
     return;
   }
 
-  showLoading("กำลังโหลดคำศัพท์จากเซิร์ฟเวอร์…");
+  showLoading('กำลังโหลดคำศัพท์จากเซิร์ฟเวอร์…');
 
   try {
     const res = await fetch(
       `${API_URL}?action=loadAll&userId=${encodeURIComponent(user.id)}`,
       {
-        method: "GET",
-        redirect: "follow",
+        method: 'GET',
+        redirect: 'follow'
       }
     );
-    if (!res.ok) throw new Error("HTTP " + res.status);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
 
-    // ได้ response แล้ว ดัน progress ไปแถว ๆ 30%
-    setLoadingProgress(30, "ได้รับข้อมูลจากเซิร์ฟเวอร์แล้ว…");
+    setLoadingProgress(30, 'ได้รับข้อมูลจากเซิร์ฟเวอร์แล้ว…');
 
     const json = await res.json();
     if (!json.success) {
-      console.error("API loadAll error:", json.error);
-      alert("โหลดคำศัพท์ไม่สำเร็จ: " + (json.error || "unknown error"));
+      console.error('API loadAll error:', json.error);
+      alert('โหลดคำศัพท์ไม่สำเร็จ: ' + (json.error || 'unknown error'));
       vocab = [];
       hideLoading();
       return;
     }
 
     const rows = Array.isArray(json.rows) ? json.rows : [];
-
-    // สร้าง vocab ด้วย progress แบบ batch
     await buildVocabWithProgress(rows);
-
   } catch (err) {
-    console.error("loadAll() failed", err);
-    alert("โหลดคำศัพท์ไม่สำเร็จ (ดู console สำหรับรายละเอียด)");
+    console.error('loadAll() failed', err);
+    alert('โหลดคำศัพท์ไม่สำเร็จ (ดู console สำหรับรายละเอียด)');
     vocab = [];
   } finally {
     hideLoading();
@@ -222,7 +216,7 @@ async function loadAll() {
 async function buildVocabWithProgress(rows) {
   vocab = [];
   const total = rows.length || 1;
-  const batchSize = 80; // ปรับได้ ถ้ามีคำเยอะมาก
+  const batchSize = 80;
 
   for (let i = 0; i < rows.length; i += batchSize) {
     const end = Math.min(i + batchSize, rows.length);
@@ -231,51 +225,46 @@ async function buildVocabWithProgress(rows) {
       const r = rows[j];
       vocab.push({
         id: r.id,
-        word: r.word || r.eng || "",
-        translation: r.translation || r.thai || "",
+        word: r.word || r.eng || '',
+        translation: r.translation || r.thai || '',
         correct: Number(r.correct || 0),
         wrong: Number(r.wrong || 0),
-        lastSeen: r.lastSeen || null,
+        lastSeen: r.lastSeen || null
       });
     }
 
-    const pct = 30 + (end / total) * 60; // 30 → 90% ช่วงประมวลผล
-    setLoadingProgress(pct, "กำลังประมวลผลคำศัพท์…");
-
-    // ให้ browser ได้วาดจอ/animate ตัวเอง
-    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const pct = 30 + (end / total) * 60; // 30 → 90%
+    setLoadingProgress(pct, 'กำลังประมวลผลคำศัพท์…');
+    await new Promise(resolve => requestAnimationFrame(resolve));
   }
 
-  setLoadingProgress(95, "กำลังอัปเดตหน้าจอ…");
+  setLoadingProgress(95, 'กำลังอัปเดตหน้าจอ…');
 }
 
 // ------------------------------
 // SAVE to backend
-//   - ส่ง vocab ทั้งชุดของ user นี้ไป
-//   - backend จะ rebuild words + stats ของ user ตาม data นี้
-//   - ถ้า vocab.length === 0  ⇒ ลบคำทั้งหมดของ user นั้น ๆ
 // ------------------------------
 function saveAll() {
   const user = getCurrentUser();
   if (!user || !user.id) return;
 
   const payload = {
-    action: "saveAll",
+    action: 'saveAll',
     userId: user.id,
-    data: vocab,
+    data: vocab
   };
 
   updateStatsUI();
 
   fetch(API_URL, {
-    method: "POST",
-    redirect: "follow",
+    method: 'POST',
+    redirect: 'follow',
     headers: {
-      "Content-Type": "text/plain;charset=utf-8",
+      'Content-Type': 'text/plain;charset=utf-8'
     },
-    body: JSON.stringify(payload),
-  }).catch((err) => {
-    console.error("saveAll() failed", err);
+    body: JSON.stringify(payload)
+  }).catch(err => {
+    console.error('saveAll() failed', err);
   });
 }
 
@@ -365,10 +354,15 @@ function renderLibraryImmediate() {
 window.renderLibrary = debounce(renderLibraryImmediate, 120);
 
 function isDuplicateWord(word) {
-  const w = String(word || '').trim().toLowerCase();
+  const w = String(word || '')
+    .trim()
+    .toLowerCase();
   if (!w) return false;
   return vocab.some(
-    v => String(v.word || '').trim().toLowerCase() === w
+    v =>
+      String(v.word || '')
+        .trim()
+        .toLowerCase() === w
   );
 }
 
@@ -425,8 +419,7 @@ function editItem(i) {
   renderLibraryImmediate();
 }
 
-// ✅ ปุ่มลบ 1 คำ: vocab.splice + saveAll()
-//    backend จะ rebuild words+stats ใหม่ของ user โดยไม่มีคำนี้ → stats ก็หายด้วย
+// ลบคำศัพท์ 1 คำ
 function deleteItem(i) {
   if (!confirm('ลบคำศัพท์นี้ทั้งหมด (รวมสถิติ)?')) return;
   vocab.splice(i, 1);
@@ -435,8 +428,7 @@ function deleteItem(i) {
   updateStatsUI();
 }
 
-// ✅ ปุ่ม Clear: ล้าง vocab แล้ว saveAll()
-//    backend เห็น items=[] ⇒ ลบคำ + stats ทุกคำของ user นี้
+// ล้าง vocab ทั้งหมด
 function clearAll() {
   if (!confirm('ล้างคำศัพท์ทั้งหมดของคุณ (รวมสถิติทุกคำ)?')) return;
   vocab = [];
@@ -625,6 +617,14 @@ function startPractice() {
   showPracticeCard();
 }
 
+// helper: index ของคำอ่อน (wrong >= 2)
+function getWeakIndices() {
+  return vocab
+    .map((it, i) => ({ it, i }))
+    .filter(x => (x.it.wrong || 0) >= 2)
+    .map(x => x.i);
+}
+
 function showPracticeCard() {
   const pIDEl = document.getElementById('pID');
   if (!practiceQueue.length) {
@@ -661,9 +661,7 @@ function showPracticeCard() {
   document.getElementById(
     'pIndex'
   ).textContent = `${practiceIndex + 1} / ${practiceQueue.length}`;
-  const pct = Math.round(
-    ((practiceIndex + 1) / practiceQueue.length) * 100
-  );
+  const pct = Math.round(((practiceIndex + 1) / practiceQueue.length) * 100);
   document.getElementById('pProgress').style.width = pct + '%';
 
   if (autoSoundPractice) {
@@ -775,22 +773,19 @@ document.addEventListener('keydown', function (e) {
 function stopPractice() {
   document.getElementById('practiceCard').style.display = 'none';
 }
+
+// ใช้เฉพาะคำอ่อน (wrong >= 2) สำหรับ practice
 function practiceWeak() {
-  const weak = vocab
-    .map((it, i) => ({ it, i }))
-    .filter(x => (x.it.wrong || 0) >= 2)
-    .map(x => x.i);
-  if (!weak.length) return alert('ไม่มีคำที่ผิดบ่อย');
+  const weak = getWeakIndices();
+  if (!weak.length) {
+    alert('ยังไม่มีคำที่อ่อน (ยังผิดไม่ถึง 2 ครั้ง)');
+    return;
+  }
   practiceQueue = weak;
   practiceIndex = 0;
   document.getElementById('practiceCard').style.display = 'block';
   showPracticeCard();
 }
-
-/* ------------------------------
-  QUIZ + spelling
-  (เอาโค้ด Quiz/Spelling เดิมของคุณมาแปะต่อจากตรงนี้)
--------------------------------*/
 
 /* ------------------------------
   Quiz + spelling
@@ -807,10 +802,12 @@ function ensureQuizObj(q) {
   if (!q) return null;
 
   if (typeof q === 'object' && !Array.isArray(q)) {
-    if (q.item && (q.item.word !== undefined || q.item.translation !== undefined)) {
+    if (
+      q.item &&
+      (q.item.word !== undefined || q.item.translation !== undefined)
+    ) {
       return {
-        idx:
-          q.idx !== undefined ? q.idx : q.i !== undefined ? q.i : -1,
+        idx: q.idx !== undefined ? q.idx : q.i !== undefined ? q.i : -1,
         item: {
           word: String(q.item.word || ''),
           translation: String(q.item.translation || '')
@@ -903,6 +900,33 @@ function startQuiz() {
   showNextQuiz(quizRandomize ? null : quizFixedMode);
 }
 
+// Quiz เฉพาะคำอ่อน (wrong >= 2)
+function startQuizWeak() {
+  if (!vocab.length) return alert('ไม่มีคำศัพท์');
+  const weak = getWeakIndices();
+  if (!weak.length) {
+    alert('ยังไม่มีคำที่อ่อน (ยังผิดไม่ถึง 2 ครั้ง)');
+    return;
+  }
+
+  quizRandomize = document.getElementById('randomMode').checked;
+  const fixedMode = document.getElementById('qMode').value;
+  quizFixedMode = quizRandomize ? null : fixedMode;
+
+  quizQueue = [...weak];
+  shuffleArray(quizQueue);
+
+  quizTotal = quizQueue.length;
+  quizScore = 0;
+  sessionWrong = [];
+  updateSessionWrong();
+  document.getElementById('qScore').textContent = `${quizScore} / ${quizTotal}`;
+
+  document.getElementById('quizCard').style.display = 'block';
+  document.getElementById('spellingArea').style.display = 'none';
+  showNextQuiz(quizRandomize ? null : quizFixedMode);
+}
+
 function showNextQuiz(mode) {
   if (!quizQueue.length) {
     alert(`จบแบบทดสอบ! คะแนน: ${quizScore} / ${quizTotal}`);
@@ -925,11 +949,8 @@ function showNextQuiz(mode) {
       : chosenMode === 'spelling'
       ? 'Spelling EN'
       : 'spelling-no-thai';
-  document.getElementById(
-    'qCurrentMode'
-  ).textContent = `Mode: ${modeLabel}`;
+  document.getElementById('qCurrentMode').textContent = `Mode: ${modeLabel}`;
 
-  // เล่นเสียงอัตโนมัติ เฉพาะที่เปิด auto sound และไม่ใช่ reverse
   if (chosenMode !== 'reverse' && autoSoundQuiz) {
     setTimeout(() => {
       try {
@@ -979,11 +1000,9 @@ function renderQuiz(q) {
   optsEl.innerHTML = '';
   q.options.forEach(opt => {
     const d = document.createElement('button');
-    d.className =
-      'btn btn-outline-secondary d-block mb-2 option';
+    d.className = 'btn btn-outline-secondary d-block mb-2 option';
     d.textContent = opt;
-    d.onclick = () =>
-      evaluateQuiz(opt, q.item.translation, q.idx, d);
+    d.onclick = () => evaluateQuiz(opt, q.item.translation, q.idx, d);
     optsEl.appendChild(d);
   });
   const done = quizTotal - quizQueue.length;
@@ -998,8 +1017,7 @@ function renderReverse(q) {
   optsEl.innerHTML = '';
   q.options.forEach(opt => {
     const d = document.createElement('button');
-    d.className =
-      'btn btn-outline-secondary d-block mb-2 option';
+    d.className = 'btn btn-outline-secondary d-block mb-2 option';
     d.textContent = opt;
     d.onclick = () => evaluateQuiz(opt, q.item.word, q.idx, d);
     optsEl.appendChild(d);
@@ -1112,9 +1130,7 @@ function renderSpellingNoTH(q) {
 
 function submitSpelling() {
   if (!quizCurrent) return;
-  const input = document
-    .getElementById('spellingInput')
-    .value.trim();
+  const input = document.getElementById('spellingInput').value.trim();
   const correctObj = ensureQuizObj(quizCurrent);
   const idx =
     correctObj && typeof correctObj.idx === 'number'
@@ -1123,7 +1139,6 @@ function submitSpelling() {
   evaluateSpelling(input, correctObj, idx);
 }
 
-// ให้กด Enter เพื่อ Submit ได้
 const spellingInputEl = document.getElementById('spellingInput');
 if (spellingInputEl) {
   spellingInputEl.addEventListener('keydown', function (e) {
@@ -1258,11 +1273,9 @@ function evaluateQuiz(selected, correct, idx, el) {
     el.classList.add('wrong');
     if (idx >= 0 && vocab[idx])
       vocab[idx].wrong = (vocab[idx].wrong || 0) + 1;
-    document
-      .querySelectorAll('#qOptions .option')
-      .forEach(o => {
-        if (o.textContent === correct) o.classList.add('correct');
-      });
+    document.querySelectorAll('#qOptions .option').forEach(o => {
+      if (o.textContent === correct) o.classList.add('correct');
+    });
     if (idx >= 0 && vocab[idx])
       sessionWrong.push({
         idx,
@@ -1293,6 +1306,7 @@ function evaluateQuiz(selected, correct, idx, el) {
 
 function updateSessionWrong() {
   const el = document.getElementById('sessionWrong');
+  if (!el) return;
   el.innerHTML = '';
   sessionWrong.forEach(w => {
     const d = document.createElement('div');
@@ -1314,22 +1328,6 @@ function updateSessionWrong() {
 
 function renderSessionWrong() {
   updateSessionWrong();
-}
-
-function retryWrong() {
-  const wrongIdx = vocab
-    .map((it, i) => ({ it, i }))
-    .filter(x => (x.it.wrong || 0) >= 1)
-    .map(x => x.i);
-  if (!wrongIdx.length) return alert('ไม่มีคำที่ผิดบ่อย');
-  quizQueue = [...wrongIdx];
-  shuffleArray(quizQueue);
-  quizTotal = quizQueue.length;
-  quizScore = 0;
-  sessionWrong = [];
-  document.getElementById('qScore').textContent = `${quizScore} / ${quizTotal}`;
-  document.getElementById('quizCard').style.display = 'block';
-  showNextQuiz(quizRandomize ? null : quizFixedMode);
 }
 
 /* ------------------------------
@@ -1389,31 +1387,34 @@ function updateStatsUI() {
 
 function renderWeakList() {
   const el = document.getElementById('weakList');
+  if (!el) return;
   el.innerHTML = '';
-  const weak = vocab
-    .map((it, i) => ({ ...it, i }))
-    .filter(x => (x.wrong || 0) >= 2)
-    .sort((a, b) => (b.wrong || 0) - (a.wrong || 0));
-  weak.forEach(w => {
-    const div = document.createElement('div');
-    div.className =
-      'list-group-item d-flex justify-content-between align-items-center';
-    div.innerHTML = `<div class="d-flex gap-3 align-items-center"><div class="badge bg-light text-muted" style="min-width:44px;text-align:center">${
-      w.i + 1
-    }</div><div><div class="fw-bold text-word">${escapeHtml(
-      w.word
-    )}</div><div class="small text-muted text-list">${escapeHtml(
-      w.translation
-    )}</div><div class="small">Wrong: ${
-      w.wrong || 0
-    }</div></div></div>
+
+  const weakIndices = getWeakIndices();
+  const weak = weakIndices.map(i => ({ ...vocab[i], i }));
+
+  weak
+    .sort((a, b) => (b.wrong || 0) - (a.wrong || 0))
+    .forEach(w => {
+      const div = document.createElement('div');
+      div.className =
+        'list-group-item d-flex justify-content-between align-items-center';
+      div.innerHTML = `<div class="d-flex gap-3 align-items-center"><div class="badge bg-light text-muted" style="min-width:44px;text-align:center">${
+        w.i + 1
+      }</div><div><div class="fw-bold text-word">${escapeHtml(
+        w.word
+      )}</div><div class="small text-muted text-list">${escapeHtml(
+        w.translation
+      )}</div><div class="small">Wrong: ${
+        w.wrong || 0
+      }</div></div></div>
         <div class="d-flex gap-2"><button class="btn btn-primary btn-sm" onclick="practiceSingle(${
           w.i
         })">Practice</button><button class="btn btn-outline-secondary btn-sm" onclick="editItem(${
-      w.i
-    })">Edit</button></div>`;
-    el.appendChild(div);
-  });
+        w.i
+      })">Edit</button></div>`;
+      el.appendChild(div);
+    });
 }
 
 function practiceSingle(i) {
@@ -1451,11 +1452,11 @@ function escapeHtml(s) {
 function refreshUI() {
   renderLibraryImmediate();
   updateStatsUI();
-  updateSessionWrong(); // ฟังก์ชันนี้มาจากส่วน Quiz เดิมของคุณ
+  updateSessionWrong();
 }
 
-// เซฟก่อน unload เผื่อ stats เปลี่ยน
-window.addEventListener("beforeunload", () => saveAll());
+// เซฟก่อน unload
+window.addEventListener('beforeunload', () => saveAll());
 
 // init app
 async function initApp() {
@@ -1500,4 +1501,5 @@ initApp();
     });
   });
 })();
+
 //test
