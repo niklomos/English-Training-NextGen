@@ -494,10 +494,101 @@
   color: rgba(148, 163, 184, 0.85);
 }
 
+/* FULLSCREEN LOADING OVERLAY */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at top, rgba(59, 130, 246, 0.18), transparent),
+              radial-gradient(circle at bottom, rgba(16, 185, 129, 0.25), rgba(15, 23, 42, 0.96));
+  backdrop-filter: blur(8px);
+}
+
+.loading-card {
+  width: min(420px, 90vw);
+  padding: 1.75rem 2rem;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.92);
+  box-shadow:
+    0 18px 55px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(148, 163, 184, 0.35);
+  color: #e5e7eb;
+}
+
+.loading-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.loading-subtitle {
+  font-size: 0.8rem;
+  text-align: center;
+  color: #9ca3af;
+}
+
+/* วงกลมกระพริบแบบ modern */
+.loading-dot-pulse {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  margin: 0 auto;
+  position: relative;
+  box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  animation: dotPulse 1.4s infinite;
+}
+
+@keyframes dotPulse {
+  0% {
+    transform: scale(0.9);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 18px rgba(59, 130, 246, 0);
+  }
+  100% {
+    transform: scale(0.9);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
 
     </style>
   </head>
   <body>
+    <!-- Loading overlay -->
+<div id="loadingScreen" class="loading-screen" style="display:none;">
+  <div class="loading-card">
+    <div class="loading-dot-pulse mb-3"></div>
+
+    <div class="loading-title">กำลังโหลดคำศัพท์ของคุณ…</div>
+    <div class="loading-subtitle">
+      ซิงก์ข้อมูลกับ Google Sheet โปรดรอสักครู่
+    </div>
+
+    <div class="progress mt-3">
+      <div
+        id="loadProgressBar"
+        class="progress-bar progress-bar-striped progress-bar-animated"
+        role="progressbar"
+        style="width: 0%"
+        aria-valuemin="0"
+        aria-valuemax="100"
+      ></div>
+    </div>
+    <div
+      id="loadProgressText"
+      class="small text-muted mt-2 text-center"
+    >
+      0%
+    </div>
+  </div>
+</div>
+
     <div class="container py-4">
       <nav class="navbar navbar-expand-lg bg-transparent mb-3">
         <div class="container-fluid p-0 align-items-center d-flex">
