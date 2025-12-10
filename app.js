@@ -746,31 +746,36 @@ document.addEventListener('keydown', function (e) {
       ae.tagName === 'TEXTAREA' ||
       ae.isContentEditable);
 
+  // ถ้ากำลังพิมพ์ในช่อง input/textarea ให้กดได้ปกติ (ยกเว้น Shift)
   if (isTextField && e.key !== 'Shift') {
     return;
   }
 
+  const practiceCard = document.getElementById('practiceCard');
+  const quizCard = document.getElementById('quizCard');
+
+  const practiceVisible =
+    practiceCard && practiceCard.offsetParent !== null;
+  const quizVisible = quizCard && quizCard.offsetParent !== null;
+
+  // ใช้ ArrowLeft/Right ได้เฉพาะตอน practiceCard โชว์อยู่เท่านั้น
   if (e.key === 'ArrowLeft') {
+    if (!practiceVisible) return; // ถ้าไม่ได้อยู่หน้า Practice → ไม่ต้องทำอะไร
     e.preventDefault();
     markUnknown();
     return;
   }
 
   if (e.key === 'ArrowRight') {
+    if (!practiceVisible) return; // ถ้าไม่ได้อยู่หน้า Practice → ไม่ต้องทำอะไร
     e.preventDefault();
     markKnown();
     return;
   }
 
+  // Shift = เล่นเสียง (ตามเดิม) เฉพาะตอน Practice/Quiz โชว์อยู่
   if (e.key === 'Shift') {
     e.preventDefault();
-
-    const practiceCard = document.getElementById('practiceCard');
-    const quizCard = document.getElementById('quizCard');
-
-    const practiceVisible =
-      practiceCard && practiceCard.offsetParent !== null;
-    const quizVisible = quizCard && quizCard.offsetParent !== null;
 
     if (practiceVisible && !quizVisible) {
       playEN('practice');
@@ -788,6 +793,7 @@ document.addEventListener('keydown', function (e) {
     }
   }
 });
+
 
 function stopPractice() {
   document.getElementById('practiceCard').style.display = 'none';
