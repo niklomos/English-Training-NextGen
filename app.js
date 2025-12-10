@@ -88,7 +88,7 @@ themeToggle && themeToggle.addEventListener('click', toggleTheme);
 // Data model & storage
 // ------------------------------
 const API_URL =
-  "https://script.google.com/macros/s/AKfycbxDQj4g7KH82V-2N9YyoVEWIwyIEAv8wr-DkiCOvL5mxvP9B1C-ifSKkohRVZcF_hqjug/exec";
+  "https://script.google.com/macros/s/AKfycbxF2M9zo8CGTEeHpmNJJtm0yAdg2VzDdQvpqqNBD0pNgS51NjseavEdsfieXt5tyu0bzg/exec";
 
 let vocab = []; // words ของ user ปัจจุบัน
 

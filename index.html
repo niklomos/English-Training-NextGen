@@ -59,22 +59,28 @@
         box-shadow: 0 10px 30px rgba(15, 23, 42, 0.3);
         border: 1px solid rgba(148, 163, 184, 0.5);
         backdrop-filter: blur(10px);
-        background: radial-gradient(circle at top left,
+        background: radial-gradient(
+            circle at top left,
             rgba(59, 130, 246, 0.18),
-            transparent),
+            transparent
+          ),
           rgba(15, 23, 42, 0.95);
         color: #e5e7eb;
       }
       .status-toast-success .status-toast-inner {
-        background: radial-gradient(circle at top left,
+        background: radial-gradient(
+            circle at top left,
             rgba(34, 197, 94, 0.22),
-            transparent),
+            transparent
+          ),
           rgba(15, 23, 42, 0.95);
       }
       .status-toast-error .status-toast-inner {
-        background: radial-gradient(circle at top left,
+        background: radial-gradient(
+            circle at top left,
             rgba(239, 68, 68, 0.22),
-            transparent),
+            transparent
+          ),
           rgba(15, 23, 42, 0.95);
       }
       .status-toast-icon {
@@ -191,7 +197,7 @@
 
     <script>
       const API_URL =
-        "https://script.google.com/macros/s/AKfycbxDQj4g7KH82V-2N9YyoVEWIwyIEAv8wr-DkiCOvL5mxvP9B1C-ifSKkohRVZcF_hqjug/exec";
+        "https://script.google.com/macros/s/AKfycbxF2M9zo8CGTEeHpmNJJtm0yAdg2VzDdQvpqqNBD0pNgS51NjseavEdsfieXt5tyu0bzg/exec";
 
       let currentMode = "login"; // 'login' | 'register'
 
@@ -222,11 +228,18 @@
         }
       }
 
+      // ล้าง prefix "Error: " ที่มาจาก Google Apps Script ให้อ่านง่ายขึ้น
+      function cleanErrorMessage(msg) {
+        if (!msg) return "";
+        return String(msg).replace(/^Error:\s*/i, "");
+      }
+
       function showError(msg) {
         const el = document.getElementById("loginError");
-        el.textContent = msg;
+        const cleaned = cleanErrorMessage(msg);
+        el.textContent = cleaned;
         el.style.display = "block";
-        showToast(msg, "error");
+        showToast(cleaned, "error");
       }
 
       // Toast helper
@@ -341,6 +354,8 @@
 
           const json = await res.json();
           if (!json.success) {
+            // error จาก backend เช่น
+            // "username นี้ถูกใช้แล้ว" หรือ "Display name นี้ถูกใช้แล้ว"
             showError(json.error || "ดำเนินการไม่สำเร็จ");
             return;
           }
@@ -349,7 +364,10 @@
           if (currentMode === "login") {
             // login สำเร็จ
             localStorage.setItem("vt_user", JSON.stringify(json.user));
-            showToast("เข้าสู่ระบบสำเร็จ กำลังพาไปหน้า Vocabulary…", "success");
+            showToast(
+              "เข้าสู่ระบบสำเร็จ กำลังพาไปหน้า Vocabulary…",
+              "success"
+            );
 
             // ดีเลย์เบา ๆ ให้เห็น toast แล้วค่อยเด้งหน้า
             setTimeout(() => {
@@ -357,7 +375,10 @@
             }, 600);
           } else {
             // register สำเร็จ
-            showToast("สมัครสมาชิกสำเร็จ! สามารถล็อกอินได้แล้ว 🎉", "success");
+            showToast(
+              "สมัครสมาชิกสำเร็จ! สามารถล็อกอินได้แล้ว 🎉",
+              "success"
+            );
 
             // สลับกลับไปโหมด login อัตโนมัติ
             switchMode("login");
@@ -369,7 +390,6 @@
           console.error(err);
           showError("เกิดข้อผิดพลาด ลองใหม่อีกครั้ง");
         } finally {
-          // ถ้า login สำเร็จเดี๋ยว redirect เอง แต่ระหว่างนี้ก็คืนปุ่มไว้
           setLoading(false);
         }
       }
