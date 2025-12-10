@@ -223,14 +223,18 @@ async function buildVocabWithProgress(rows) {
 
     for (let j = i; j < end; j++) {
       const r = rows[j];
-      vocab.push({
-        id: r.id,
-        word: r.word || r.eng || '',
-        translation: r.translation || r.thai || '',
-        correct: Number(r.correct || 0),
-        wrong: Number(r.wrong || 0),
-        lastSeen: r.lastSeen || null
-      });
+     vocab.push({
+  id: r.id,
+  word: r.word || r.eng || '',
+  translation: r.translation || r.thai || '',
+  correct: Number(r.correct || 0),
+  wrong: Number(r.wrong || 0),
+  lastSeen: r.lastSeen || null
+});
+
+// ใช้กฎ mastered: correct >= 3 ⇒ wrong = 0
+applyMasteryRule(vocab.length - 1);
+
     }
 
     const pct = 30 + (end / total) * 60; // 30 → 90%
@@ -624,6 +628,19 @@ function getWeakIndices() {
     .filter(x => (x.it.wrong || 0) >= 2)
     .map(x => x.i);
 }
+// ถ้าตอบถูกครบ 3 ครั้งขึ้นไป ให้ล้าง wrong = 0
+function applyMasteryRule(idx) {
+  const item = vocab[idx];
+  if (!item) return;
+
+  item.correct = Number(item.correct || 0);
+  item.wrong = Number(item.wrong || 0);
+
+  if (item.correct >= 3) {
+    item.wrong = 0;
+  }
+}
+
 
 function showPracticeCard() {
   const pIDEl = document.getElementById('pID');
@@ -698,10 +715,12 @@ function markKnown() {
   );
   if (idx < 0) return;
   vocab[idx].correct = (vocab[idx].correct || 0) + 1;
+  applyMasteryRule(idx);        // << เพิ่มบรรทัดนี้
   vocab[idx].lastSeen = Date.now();
   saveAll();
   nextPractice();
 }
+
 
 function markUnknown() {
   const idx = parseInt(
@@ -1209,19 +1228,20 @@ function evaluateSpelling(input, correctObj, idx) {
     .trim()
     .toLowerCase();
 
-  if (normalizedInput === normalizedCorrect) {
-    const detailLine = correctTrans
-      ? `${correctWord} — ${correctTrans}`
-      : correctWord;
+ if (normalizedInput === normalizedCorrect) {
+  const detailLine = correctTrans
+    ? `${correctWord} — ${correctTrans}`
+    : correctWord;
 
-    if (fb) fb.textContent = `ถูกต้อง — ${detailLine}`;
-    showSpellingStatus('correct', correctWord, detailLine);
+  if (fb) fb.textContent = `ถูกต้อง — ${detailLine}`;
+  showSpellingStatus('correct', correctWord, detailLine);
 
-    if (idx >= 0 && vocab[idx]) {
-      vocab[idx].correct = (vocab[idx].correct || 0) + 1;
-    }
-    quizScore++;
-  } else {
+  if (idx >= 0 && vocab[idx]) {
+    vocab[idx].correct = (vocab[idx].correct || 0) + 1;
+    applyMasteryRule(idx);            // << เพิ่ม
+  }
+  quizScore++;
+} else {
     const detailLine = correctTrans
       ? `${correctWord} (${correctTrans})`
       : correctWord;
@@ -1264,12 +1284,14 @@ function evaluateQuiz(selected, correct, idx, el) {
     .querySelectorAll('#qOptions .option')
     .forEach(o => (o.onclick = null));
   const auto = document.getElementById('autoNext').checked;
-  if (selected === correct) {
-    el.classList.add('correct');
-    quizScore++;
-    if (idx >= 0 && vocab[idx])
-      vocab[idx].correct = (vocab[idx].correct || 0) + 1;
-  } else {
+ if (selected === correct) {
+  el.classList.add('correct');
+  quizScore++;
+  if (idx >= 0 && vocab[idx]) {
+    vocab[idx].correct = (vocab[idx].correct || 0) + 1;
+    applyMasteryRule(idx);            // << เพิ่ม
+  }
+} else {
     el.classList.add('wrong');
     if (idx >= 0 && vocab[idx])
       vocab[idx].wrong = (vocab[idx].wrong || 0) + 1;
