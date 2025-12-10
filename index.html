@@ -29,6 +29,68 @@
         width: 100%;
         border-radius: 16px;
         box-shadow: 0 10px 35px rgba(15, 23, 42, 0.12);
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(8px);
+      }
+
+      /* Toast สถานะด้านล่างหน้าจอ */
+      .status-toast {
+        position: fixed;
+        left: 50%;
+        bottom: 1.5rem;
+        transform: translateX(-50%) translateY(20px);
+        opacity: 0;
+        transition: all 0.25s ease;
+        z-index: 1050;
+        pointer-events: none;
+      }
+      .status-toast.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+      }
+      .status-toast-inner {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.55rem 1rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.3);
+        border: 1px solid rgba(148, 163, 184, 0.5);
+        backdrop-filter: blur(10px);
+        background: radial-gradient(circle at top left,
+            rgba(59, 130, 246, 0.18),
+            transparent),
+          rgba(15, 23, 42, 0.95);
+        color: #e5e7eb;
+      }
+      .status-toast-success .status-toast-inner {
+        background: radial-gradient(circle at top left,
+            rgba(34, 197, 94, 0.22),
+            transparent),
+          rgba(15, 23, 42, 0.95);
+      }
+      .status-toast-error .status-toast-inner {
+        background: radial-gradient(circle at top left,
+            rgba(239, 68, 68, 0.22),
+            transparent),
+          rgba(15, 23, 42, 0.95);
+      }
+      .status-toast-icon {
+        font-size: 1rem;
+      }
+
+      /* ให้ปุ่มดูล้ำ ๆ หน่อยเวลา hover */
+      #primaryBtn {
+        transition: transform 0.12s ease, box-shadow 0.12s ease;
+      }
+      #primaryBtn:not(:disabled):hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 25px rgba(37, 99, 235, 0.28);
+      }
+      #primaryBtn:disabled {
+        opacity: 0.85;
       }
     </style>
   </head>
@@ -92,8 +154,19 @@
       </div>
 
       <div class="d-grid gap-2">
-        <button id="primaryBtn" class="btn btn-primary" onclick="submitForm()">
-          Login
+        <button
+          id="primaryBtn"
+          class="btn btn-primary d-flex align-items-center justify-content-center gap-2"
+          onclick="submitForm()"
+        >
+          <span id="primaryBtnLabel">Login</span>
+          <div
+            id="primaryBtnSpinner"
+            class="spinner-border spinner-border-sm text-light d-none"
+            role="status"
+          >
+            <span class="visually-hidden">Loading...</span>
+          </div>
         </button>
       </div>
 
@@ -102,6 +175,18 @@
         class="text-danger small mt-3"
         style="display: none"
       ></div>
+    </div>
+
+    <!-- Toast แสดงสถานะ -->
+    <div
+      id="statusToast"
+      class="status-toast status-toast-success"
+      style="display: none"
+    >
+      <div class="status-toast-inner">
+        <span id="statusToastIcon" class="status-toast-icon">✅</span>
+        <span id="statusToastText">ข้อความ</span>
+      </div>
     </div>
 
     <script>
@@ -123,16 +208,17 @@
           );
 
         const dnGroup = document.getElementById("displayNameGroup");
-        const primaryBtn = document.getElementById("primaryBtn");
+        const primaryBtnLabel = document.getElementById("primaryBtnLabel");
         const errorBox = document.getElementById("loginError");
         errorBox.style.display = "none";
+        errorBox.textContent = "";
 
         if (mode === "register") {
           dnGroup.style.display = "block";
-          primaryBtn.textContent = "Register";
+          primaryBtnLabel.textContent = "Register";
         } else {
           dnGroup.style.display = "none";
-          primaryBtn.textContent = "Login";
+          primaryBtnLabel.textContent = "Login";
         }
       }
 
@@ -140,6 +226,66 @@
         const el = document.getElementById("loginError");
         el.textContent = msg;
         el.style.display = "block";
+        showToast(msg, "error");
+      }
+
+      // Toast helper
+      function showToast(message, type = "success") {
+        const toast = document.getElementById("statusToast");
+        const icon = document.getElementById("statusToastIcon");
+        const text = document.getElementById("statusToastText");
+
+        if (!toast || !icon || !text) return;
+
+        text.textContent = message;
+        icon.textContent = type === "success" ? "✅" : "⚠️";
+
+        toast.classList.remove("status-toast-success", "status-toast-error");
+        toast.classList.add(
+          type === "success" ? "status-toast-success" : "status-toast-error"
+        );
+
+        toast.style.display = "block";
+
+        // trigger animation (ต้องให้ browser วาด 1 frame ก่อน)
+        requestAnimationFrame(() => {
+          toast.classList.add("show");
+        });
+
+        // auto hide
+        setTimeout(() => {
+          toast.classList.remove("show");
+          setTimeout(() => {
+            toast.style.display = "none";
+          }, 250);
+        }, 2500);
+      }
+
+      // Loading state สำหรับปุ่ม + form
+      function setLoading(isLoading) {
+        const btn = document.getElementById("primaryBtn");
+        const label = document.getElementById("primaryBtnLabel");
+        const spinner = document.getElementById("primaryBtnSpinner");
+        const inputs = document.querySelectorAll("input");
+
+        if (!btn || !label || !spinner) return;
+
+        if (isLoading) {
+          btn.disabled = true;
+          inputs.forEach((i) => (i.disabled = true));
+
+          label.textContent =
+            currentMode === "login"
+              ? "กำลังเข้าสู่ระบบ..."
+              : "กำลังสมัครสมาชิก...";
+          spinner.classList.remove("d-none");
+        } else {
+          btn.disabled = false;
+          inputs.forEach((i) => (i.disabled = false));
+
+          label.textContent = currentMode === "login" ? "Login" : "Register";
+          spinner.classList.add("d-none");
+        }
       }
 
       async function submitForm() {
@@ -162,6 +308,8 @@
           showError("กรุณากรอก Display name สำหรับการสมัคร");
           return;
         }
+
+        setLoading(true);
 
         try {
           const payload =
@@ -197,11 +345,32 @@
             return;
           }
 
-          localStorage.setItem("vt_user", JSON.stringify(json.user));
-          window.location.href = "app.html";
+          // ----- success -----
+          if (currentMode === "login") {
+            // login สำเร็จ
+            localStorage.setItem("vt_user", JSON.stringify(json.user));
+            showToast("เข้าสู่ระบบสำเร็จ กำลังพาไปหน้า Vocabulary…", "success");
+
+            // ดีเลย์เบา ๆ ให้เห็น toast แล้วค่อยเด้งหน้า
+            setTimeout(() => {
+              window.location.href = "app.html";
+            }, 600);
+          } else {
+            // register สำเร็จ
+            showToast("สมัครสมาชิกสำเร็จ! สามารถล็อกอินได้แล้ว 🎉", "success");
+
+            // สลับกลับไปโหมด login อัตโนมัติ
+            switchMode("login");
+            // คง username เดิมไว้ / ล้าง password + displayName
+            document.getElementById("loginPassword").value = "";
+            document.getElementById("displayName").value = "";
+          }
         } catch (err) {
           console.error(err);
           showError("เกิดข้อผิดพลาด ลองใหม่อีกครั้ง");
+        } finally {
+          // ถ้า login สำเร็จเดี๋ยว redirect เอง แต่ระหว่างนี้ก็คืนปุ่มไว้
+          setLoading(false);
         }
       }
 
@@ -212,7 +381,7 @@
         }
       });
 
-      // ถ้า login อยู่แล้ว เด้งไป index
+      // ถ้า login อยู่แล้ว เด้งไป app เลย
       (function () {
         try {
           const u = JSON.parse(localStorage.getItem("vt_user") || "null");
