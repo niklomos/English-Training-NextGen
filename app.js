@@ -456,6 +456,89 @@ function clearAll() {
 /* ------------------------------
   Import / Export CSV
 -------------------------------*/
+// ===== Export CSV (UTF-8 + BOM, Excel friendly) =====
+function buildCSVString() {
+  // header
+  const rows = [['Word', 'Translation']];
+
+  // data
+  vocab.forEach(item => {
+    const w = String(item.word || '').trim();
+    const t = String(item.translation || '').trim();
+    rows.push([w, t]);
+  });
+
+  // แปลงเป็น CSV และ escape " ให้ถูกต้อง
+  const lines = rows.map(row =>
+    row
+      .map(cell => {
+        const s = String(cell).replace(/"/g, '""');
+        return `"${s}"`;
+      })
+      .join(',')
+  );
+
+  return lines.join('\r\n');
+}
+
+function exportCSV() {
+  if (!vocab.length) {
+    alert('ยังไม่มีคำศัพท์ให้ Export');
+    return;
+  }
+
+  const csvBody = buildCSVString();
+  const bom = '\uFEFF'; // UTF-8 BOM ให้ Excel อ่านภาษาไทยไม่เพี้ยน
+  const csv = bom + csvBody;
+
+  const blob = new Blob([csv], {
+    type: 'text/csv;charset=utf-8;'
+  });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'vocabulary.csv'; // ชื่อไฟล์ที่ได้
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ===== Copy CSV to clipboard =====
+function copyCSV() {
+  if (!vocab.length) {
+    alert('ยังไม่มีคำศัพท์ให้คัดลอก');
+    return;
+  }
+
+  const csv = buildCSVString(); // ไม่ใส่ BOM เวลา copy
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard
+      .writeText(csv)
+      .then(() => {
+        alert('คัดลอก CSV ไปยังคลิปบอร์ดแล้ว');
+      })
+      .catch(() => {
+        alert('คัดลอกไม่สำเร็จ ลองกดอีกครั้งหรือใช้ Export CSV แทน');
+      });
+  } else {
+    // fallback เก่ามาก ๆ
+    const ta = document.createElement('textarea');
+    ta.value = csv;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      alert('คัดลอก CSV ไปยังคลิปบอร์ดแล้ว');
+    } catch (e) {
+      alert('เบราว์เซอร์ไม่รองรับการคัดลอกอัตโนมัติ');
+    }
+    document.body.removeChild(ta);
+  }
+}
 
 function importItems(newItems) {
   if (!newItems || !newItems.length) {
