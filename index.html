@@ -87,7 +87,7 @@
         font-size: 1rem;
       }
 
-      /* ให้ปุ่มดูล้ำ ๆ หน่อยเวลา hover */
+      /* ปุ่มให้ดูมีแอนิเมชันนิดหน่อย */
       #primaryBtn {
         transition: transform 0.12s ease, box-shadow 0.12s ease;
       }
@@ -196,6 +196,7 @@
     </div>
 
     <script>
+      // ใช้ URL เดียวกันกับ app.js
       const API_URL =
         "https://script.google.com/macros/s/AKfycbxF2M9zo8CGTEeHpmNJJtm0yAdg2VzDdQvpqqNBD0pNgS51NjseavEdsfieXt5tyu0bzg/exec";
 
@@ -228,7 +229,7 @@
         }
       }
 
-      // ล้าง prefix "Error: " ที่มาจาก Google Apps Script ให้อ่านง่ายขึ้น
+      // ล้าง prefix "Error: " จาก Apps Script
       function cleanErrorMessage(msg) {
         if (!msg) return "";
         return String(msg).replace(/^Error:\s*/i, "");
@@ -260,12 +261,10 @@
 
         toast.style.display = "block";
 
-        // trigger animation (ต้องให้ browser วาด 1 frame ก่อน)
         requestAnimationFrame(() => {
           toast.classList.add("show");
         });
 
-        // auto hide
         setTimeout(() => {
           toast.classList.remove("show");
           setTimeout(() => {
@@ -301,15 +300,13 @@
         }
       }
 
-      async function submitForm() {
+      // ฟังก์ชันแยกชัด ๆ ระหว่าง login กับ register
+      async function submitLogin() {
         const username = document
           .getElementById("loginUsername")
           .value.trim();
         const password = document
           .getElementById("loginPassword")
-          .value.trim();
-        const displayName = document
-          .getElementById("displayName")
           .value.trim();
 
         if (!username || !password) {
@@ -317,27 +314,14 @@
           return;
         }
 
-        if (currentMode === "register" && !displayName) {
-          showError("กรุณากรอก Display name สำหรับการสมัคร");
-          return;
-        }
-
         setLoading(true);
 
         try {
-          const payload =
-            currentMode === "login"
-              ? {
-                  action: "login",
-                  username,
-                  password,
-                }
-              : {
-                  action: "register",
-                  username,
-                  password,
-                  displayName,
-                };
+          const payload = {
+            action: "login",
+            username,
+            password,
+          };
 
           const res = await fetch(API_URL, {
             method: "POST",
@@ -354,38 +338,16 @@
 
           const json = await res.json();
           if (!json.success) {
-            // error จาก backend เช่น
-            // "username นี้ถูกใช้แล้ว" หรือ "Display name นี้ถูกใช้แล้ว"
             showError(json.error || "ดำเนินการไม่สำเร็จ");
             return;
           }
 
-          // ----- success -----
-          if (currentMode === "login") {
-            // login สำเร็จ
-            localStorage.setItem("vt_user", JSON.stringify(json.user));
-            showToast(
-              "เข้าสู่ระบบสำเร็จ กำลังพาไปหน้า Vocabulary…",
-              "success"
-            );
+          localStorage.setItem("vt_user", JSON.stringify(json.user));
+          showToast("เข้าสู่ระบบสำเร็จ กำลังพาไปหน้า Vocabulary…", "success");
 
-            // ดีเลย์เบา ๆ ให้เห็น toast แล้วค่อยเด้งหน้า
-            setTimeout(() => {
-              window.location.href = "app.html";
-            }, 600);
-          } else {
-            // register สำเร็จ
-            showToast(
-              "สมัครสมาชิกสำเร็จ! สามารถล็อกอินได้แล้ว 🎉",
-              "success"
-            );
-
-            // สลับกลับไปโหมด login อัตโนมัติ
-            switchMode("login");
-            // คง username เดิมไว้ / ล้าง password + displayName
-            document.getElementById("loginPassword").value = "";
-            document.getElementById("displayName").value = "";
-          }
+          setTimeout(() => {
+            window.location.href = "app.html";
+          }, 600);
         } catch (err) {
           console.error(err);
           showError("เกิดข้อผิดพลาด ลองใหม่อีกครั้ง");
@@ -394,10 +356,100 @@
         }
       }
 
+      async function submitRegister() {
+        const username = document
+          .getElementById("loginUsername")
+          .value.trim();
+        const password = document
+          .getElementById("loginPassword")
+          .value.trim();
+        const displayName = document
+          .getElementById("displayName")
+          .value.trim();
+
+        if (!username || !password) {
+          showError("กรุณากรอก username และ password");
+          return;
+        }
+
+        if (!displayName) {
+          showError("กรุณากรอก Display name สำหรับการสมัคร");
+          return;
+        }
+
+        setLoading(true);
+
+        try {
+          const payload = {
+            action: "register",
+            username,
+            password,
+            displayName,
+          };
+
+          const res = await fetch(API_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "text/plain;charset=utf-8",
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (!res.ok) {
+            showError("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (" + res.status + ")");
+            return;
+          }
+
+          const json = await res.json();
+          if (!json.success) {
+            showError(json.error || "ดำเนินการไม่สำเร็จ");
+            return;
+          }
+
+          showToast("สมัครสมาชิกสำเร็จ! สามารถล็อกอินได้แล้ว 🎉", "success");
+
+          // สลับกลับไปโหมด login อัตโนมัติ
+          switchMode("login");
+          document.getElementById("loginPassword").value = "";
+          document.getElementById("displayName").value = "";
+        } catch (err) {
+          console.error(err);
+          showError("เกิดข้อผิดพลาด ลองใหม่อีกครั้ง");
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      // ปุ่มหลักบนหน้าจอ (คลิกเมาส์)
+      function submitForm() {
+        if (currentMode === "login") {
+          submitLogin();
+        } else {
+          submitRegister();
+        }
+      }
+
+      // กด Enter:
+      //   - ถ้าอยู่โหมด login → login
+      //   - ถ้าอยู่โหมด register → register
       document.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          submitForm();
+        if (e.key !== "Enter") return;
+
+        // ให้ทำงานเฉพาะถ้าโฟกัสอยู่ใน input ของฟอร์ม
+        const ae = document.activeElement;
+        const isInput =
+          ae &&
+          (ae.tagName === "INPUT" ||
+            ae.tagName === "TEXTAREA" ||
+            ae.isContentEditable);
+
+        if (!isInput) return;
+
+        e.preventDefault();
+        if (currentMode === "login") {
+          submitLogin();
+        } else {
+          submitRegister();
         }
       });
 
