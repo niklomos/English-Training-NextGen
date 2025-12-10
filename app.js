@@ -1395,23 +1395,91 @@ function playENIndex(i) {
 /* ------------------------------
   Stats & helpers
 -------------------------------*/
+/* ------------------------------
+  Stats & helpers
+-------------------------------*/
 function updateStatsUI() {
-  document.getElementById('statTotal').textContent = vocab.length;
-  document.getElementById('statMaster').textContent = vocab.filter(
-    i => (i.correct || 0) >= 3
-  ).length;
-  document.getElementById('statWeak').textContent = vocab.filter(
-    i => (i.wrong || 0) >= 2
-  ).length;
-  document.getElementById('dTotal').textContent = vocab.length;
-  document.getElementById('dMaster').textContent = vocab.filter(
-    i => (i.correct || 0) >= 3
-  ).length;
-  document.getElementById('dWeak').textContent = vocab.filter(
-    i => (i.wrong || 0) >= 2
-  ).length;
+  const total = vocab.length;
+  const mastered = vocab.filter(i => (i.correct || 0) >= 3).length;
+  const weak = vocab.filter(i => (i.wrong || 0) >= 2).length;
+
+  // ตัวเลขเดิม (Library + Stats)
+  const statTotalEl = document.getElementById('statTotal');
+  const statMasterEl = document.getElementById('statMaster');
+  const statWeakEl = document.getElementById('statWeak');
+  const dTotalEl = document.getElementById('dTotal');
+  const dMasterEl = document.getElementById('dMaster');
+  const dWeakEl = document.getElementById('dWeak');
+
+  if (statTotalEl) statTotalEl.textContent = total;
+  if (statMasterEl) statMasterEl.textContent = mastered;
+  if (statWeakEl) statWeakEl.textContent = weak;
+  if (dTotalEl) dTotalEl.textContent = total;
+  if (dMasterEl) dMasterEl.textContent = mastered;
+  if (dWeakEl) dWeakEl.textContent = weak;
+
+  // คำนวณเปอร์เซ็น mastered / weak
+  const masteryPercent = total ? Math.round((mastered / total) * 100) : 0;
+  const weakPercent = total ? Math.round((weak / total) * 100) : 0;
+
+  const masteryCircle = document.getElementById('masteryCircle');
+  const masteryPercentText = document.getElementById('masteryPercentText');
+  const masteredText = document.getElementById('masteredText');
+  const weakText = document.getElementById('weakText');
+  const masteredBar = document.getElementById('masteredBar');
+  const weakBar = document.getElementById('weakBar');
+  const levelLabel = document.getElementById('levelLabel');
+  const levelHint = document.getElementById('levelHint');
+
+  if (masteryPercentText)
+    masteryPercentText.textContent = masteryPercent + '%';
+
+  if (masteredText) masteredText.textContent = `${mastered} / ${total}`;
+  if (weakText) weakText.textContent = String(weak);
+
+  if (masteredBar) masteredBar.style.width = masteryPercent + '%';
+  if (weakBar) weakBar.style.width = weakPercent + '%';
+
+  if (masteryCircle) {
+    const deg = masteryPercent * 3.6; // 100% = 360deg
+    masteryCircle.style.background = `conic-gradient(
+      var(--success) ${deg}deg,
+      rgba(148, 163, 184, 0.25) 0deg
+    )`;
+  }
+
+  // แปลงเปอร์เซ็นเป็น "ระดับ" แบบอ่านง่าย
+  if (levelLabel && levelHint) {
+    let level = 'Newbie';
+    let hint = 'เริ่มสะสมคำศัพท์ไปทีละคำ 😊';
+
+    if (!total) {
+      level = 'No data';
+      hint = 'เพิ่มคำศัพท์สักคำเพื่อเริ่มต้นเลย!';
+    } else if (masteryPercent < 20) {
+      level = 'Starter';
+      hint = 'เพิ่งเริ่ม แต่ทิศทางดี ลองฝึกทุกวันสั้น ๆ';
+    } else if (masteryPercent < 50) {
+      level = 'Learner';
+      hint = 'กำลังไปได้ดี ฝึกคำที่อ่อนให้บ่อยขึ้น';
+    } else if (masteryPercent < 80) {
+      level = 'Confident';
+      hint = 'โคตรใกล้แล้ว เหลือเก็บคำที่ยังผิดบ่อย ๆ';
+    } else if (masteryPercent < 100) {
+      level = 'Almost there';
+      hint = 'อีกแค่ไม่กี่คำก็ครบแล้ว สู้ต่ออีกนิด! 🔥';
+    } else if (masteryPercent === 100) {
+      level = 'Word Master';
+      hint = 'เก็บครบทุกคำ ปังมาก 🎉 ลองเพิ่ม list ใหม่ได้เลย';
+    }
+
+    levelLabel.textContent = level;
+    levelHint.textContent = hint;
+  }
+
   renderWeakList();
 }
+
 
 function renderWeakList() {
   const el = document.getElementById('weakList');
