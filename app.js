@@ -705,7 +705,7 @@ function markKnown() {
   nextPractice();
 }
 
-function markWrong() {
+function markUnknown() {
   const idx = parseInt(
     document.getElementById('practiceCard').dataset.idx || -1
   );
@@ -735,7 +735,7 @@ document.addEventListener('keydown', function (e) {
 
   if (e.key === 'ArrowLeft') {
     e.preventDefault();
-    markWrong();
+    markUnknown();
     return;
   }
 
