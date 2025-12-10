@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link
@@ -15,172 +15,554 @@
     />
 
     <style>
+      :root {
+        --primary: #2563eb;
+        --primary-soft: #dbeafe;
+        --accent: #06b6d4;
+        --danger: #ef4444;
+        --muted: #6b7280;
+        --card-bg: rgba(255, 255, 255, 0.96);
+        --card-border: rgba(148, 163, 184, 0.5);
+        --radius-lg: 20px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body {
         font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
-        background: linear-gradient(135deg, #eff6ff, #ecfdf5);
         min-height: 100vh;
+        margin: 0;
+        padding: 1.8rem;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 1.5rem;
-      }
-      .card-login {
-        max-width: 420px;
-        width: 100%;
-        border-radius: 16px;
-        box-shadow: 0 10px 35px rgba(15, 23, 42, 0.12);
-        border: 1px solid rgba(148, 163, 184, 0.4);
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(8px);
+        color: #0f172a;
+        background:
+          radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.2), transparent 55%),
+          radial-gradient(circle at 100% 100%, rgba(45, 212, 191, 0.25), transparent 55%),
+          linear-gradient(135deg, #eff6ff, #ecfdf5);
       }
 
-      /* Toast สถานะด้านล่างหน้าจอ */
+      /* layer เบลอด้านหลังให้ดูแบบเว็บใหญ่ */
+      .auth-shell {
+        position: relative;
+        width: 100%;
+        max-width: 960px;
+      }
+
+      .auth-shell-bg {
+        position: absolute;
+        inset: -40px -60px;
+        background: radial-gradient(
+            circle at top left,
+            rgba(129, 140, 248, 0.18),
+            transparent 55%
+          ),
+          radial-gradient(
+            circle at bottom right,
+            rgba(45, 212, 191, 0.24),
+            transparent 55%
+          );
+        filter: blur(18px);
+        opacity: 0.8;
+        z-index: -2;
+      }
+
+      .auth-shell-inner {
+        border-radius: 28px;
+        padding: 1.2rem;
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(22px);
+        box-shadow:
+          0 20px 60px rgba(15, 23, 42, 0.18),
+          0 0 0 1px rgba(148, 163, 184, 0.12);
+      }
+
+      .auth-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+        gap: 1.4rem;
+      }
+
+      @media (max-width: 768px) {
+        body {
+          padding: 1.25rem;
+        }
+        .auth-shell-inner {
+          padding: 1rem;
+        }
+        .auth-grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+
+      /* ==== SIDE: intro / branding ==== */
+      .auth-side {
+        border-radius: 22px;
+        padding: 1.5rem 1.6rem;
+        background: radial-gradient(
+            circle at top left,
+            rgba(59, 130, 246, 0.22),
+            transparent 55%
+          ),
+          radial-gradient(
+            circle at bottom right,
+            rgba(45, 212, 191, 0.18),
+            transparent 45%
+          ),
+          linear-gradient(135deg, #1d4ed8, #0f766e);
+        color: #e5e7eb;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .auth-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.25rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.2);
+        border: 1px solid rgba(209, 213, 219, 0.22);
+        font-size: 0.75rem;
+      }
+
+      .auth-logo {
+        width: 46px;
+        height: 46px;
+        border-radius: 16px;
+        background: radial-gradient(circle at 30% 0, #facc15, #fb923c);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35);
+      }
+
+      .auth-title {
+        font-weight: 700;
+        font-size: 1.4rem;
+        margin-bottom: 0.15rem;
+      }
+
+      .auth-subtitle {
+        font-size: 0.85rem;
+        color: rgba(226, 232, 240, 0.9);
+      }
+
+      .auth-highlight {
+        margin-top: 1rem;
+        font-size: 0.82rem;
+        line-height: 1.6;
+      }
+
+      .auth-highlight ul {
+        padding-left: 1rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .auth-highlight li {
+        margin-bottom: 0.2rem;
+      }
+
+      .auth-footer-note {
+        font-size: 0.78rem;
+        opacity: 0.85;
+        margin-top: 1rem;
+      }
+
+      .auth-orbit {
+        position: absolute;
+        right: -40px;
+        bottom: -40px;
+        width: 170px;
+        height: 170px;
+        border-radius: 999px;
+        border: 1px dashed rgba(191, 219, 254, 0.5);
+        opacity: 0.4;
+      }
+
+      /* ==== CARD LOGIN ==== */
+      .card-login {
+        max-width: 460px;
+        width: 100%;
+        border-radius: 22px;
+        box-shadow: 0 16px 45px rgba(15, 23, 42, 0.16);
+        border: 1px solid var(--card-border);
+        background: var(--card-bg);
+        backdrop-filter: blur(14px);
+        padding: 1.7rem 1.6rem 1.4rem;
+      }
+
+      @media (max-width: 768px) {
+        .card-login {
+          max-width: 100%;
+          padding: 1.3rem 1.1rem 1.1rem;
+        }
+      }
+
+      .card-login h4 {
+        font-weight: 700;
+        letter-spacing: 0.03em;
+      }
+
+      .brand-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.2rem 0.6rem;
+        border-radius: 999px;
+        background: var(--primary-soft);
+        font-size: 0.72rem;
+        color: #1d4ed8;
+        font-weight: 500;
+      }
+
+      .text-muted-soft {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      /* nav pills mode */
+      #modeTabs .nav-link {
+        border-radius: 999px;
+        padding-inline: 1.2rem;
+        font-weight: 500;
+        font-size: 0.9rem;
+        color: var(--muted);
+        border: 1px solid transparent;
+        transition: all 0.18s ease;
+      }
+
+      #modeTabs .nav-link.active {
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        color: #f9fafb;
+        box-shadow: 0 10px 25px rgba(37, 99, 235, 0.35);
+      }
+
+      #modeTabs .nav-link:not(.active):hover {
+        background: rgba(226, 232, 240, 0.7);
+        border-color: rgba(148, 163, 184, 0.6);
+        color: #1f2933;
+      }
+
+      /* input field style */
+      .form-label {
+        font-size: 0.83rem;
+        font-weight: 500;
+        color: #111827;
+      }
+
+      .field-shell {
+        position: relative;
+      }
+
+      .field-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.9rem;
+        opacity: 0.55;
+        pointer-events: none;
+      }
+
+      .field-shell .form-control {
+        padding-left: 2.1rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.8);
+        font-size: 0.9rem;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease,
+          background 0.15s ease;
+      }
+
+      .field-shell .form-control:focus {
+        border-color: rgba(37, 99, 235, 0.9);
+        box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2),
+          0 10px 24px rgba(37, 99, 235, 0.16);
+        background: #ffffff;
+      }
+
+      .toggle-password {
+        position: absolute;
+        right: 0.65rem;
+        top: 50%;
+        transform: translateY(-50%);
+        border: none;
+        background: transparent;
+        font-size: 0.85rem;
+        color: var(--muted);
+        cursor: pointer;
+      }
+
+      .toggle-password:hover {
+        color: #111827;
+      }
+
+      /* primary button micro interaction */
+      #primaryBtn {
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        border: none;
+        box-shadow: 0 12px 35px rgba(37, 99, 235, 0.45);
+        transform: translateY(0) scale(1);
+        transition: transform 0.14s ease, box-shadow 0.14s ease,
+          filter 0.14s ease;
+      }
+
+      #primaryBtn:not(:disabled):hover {
+        transform: translateY(-1px) scale(1.02);
+        filter: brightness(1.05);
+      }
+
+      #primaryBtn:disabled {
+        opacity: 0.85;
+        box-shadow: 0 6px 18px rgba(148, 163, 184, 0.5);
+      }
+
+      .helper-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.78rem;
+        color: var(--muted);
+        margin-top: 0.35rem;
+      }
+
+      .helper-row a {
+        text-decoration: none;
+        font-weight: 500;
+        color: #2563eb;
+      }
+
+      .helper-row a:hover {
+        text-decoration: underline;
+      }
+
+      /* error text */
+      #loginError {
+        font-size: 0.8rem;
+      }
+
+      /* Toast status bottom */
       .status-toast {
         position: fixed;
         left: 50%;
-        bottom: 1.5rem;
-        transform: translateX(-50%) translateY(20px);
+        bottom: 1.7rem;
+        transform: translateX(-50%) translateY(18px);
         opacity: 0;
         transition: all 0.25s ease;
         z-index: 1050;
         pointer-events: none;
       }
+
       .status-toast.show {
         transform: translateX(-50%) translateY(0);
         opacity: 1;
       }
+
       .status-toast-inner {
         display: inline-flex;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0.55rem 1rem;
+        gap: 0.55rem;
+        padding: 0.55rem 1.05rem;
         border-radius: 999px;
-        font-size: 0.85rem;
-        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.3);
-        border: 1px solid rgba(148, 163, 184, 0.5);
+        font-size: 0.83rem;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.55);
         backdrop-filter: blur(10px);
         background: radial-gradient(
             circle at top left,
-            rgba(59, 130, 246, 0.18),
+            rgba(59, 130, 246, 0.35),
             transparent
           ),
-          rgba(15, 23, 42, 0.95);
+          rgba(15, 23, 42, 0.98);
         color: #e5e7eb;
       }
+
       .status-toast-success .status-toast-inner {
         background: radial-gradient(
             circle at top left,
-            rgba(34, 197, 94, 0.22),
+            rgba(34, 197, 94, 0.3),
             transparent
           ),
-          rgba(15, 23, 42, 0.95);
+          rgba(15, 23, 42, 0.98);
       }
+
       .status-toast-error .status-toast-inner {
         background: radial-gradient(
             circle at top left,
-            rgba(239, 68, 68, 0.22),
+            rgba(239, 68, 68, 0.32),
             transparent
           ),
-          rgba(15, 23, 42, 0.95);
-      }
-      .status-toast-icon {
-        font-size: 1rem;
+          rgba(15, 23, 42, 0.98);
       }
 
-      /* ปุ่มให้ดูมีแอนิเมชันนิดหน่อย */
-      #primaryBtn {
-        transition: transform 0.12s ease, box-shadow 0.12s ease;
-      }
-      #primaryBtn:not(:disabled):hover {
-        transform: translateY(-1px);
-        box-shadow: 0 10px 25px rgba(37, 99, 235, 0.28);
-      }
-      #primaryBtn:disabled {
-        opacity: 0.85;
+      .status-toast-icon {
+        font-size: 1rem;
       }
     </style>
   </head>
 
   <body>
-    <div class="card card-login p-4">
-      <h4 class="mb-1 text-center">Vocabulary Trainer</h4>
-      <p class="text-muted small text-center mb-3">
-        เข้าสู่ระบบหรือสมัครสมาชิกใหม่
-      </p>
+    <div class="auth-shell">
+      <div class="auth-shell-bg"></div>
 
-      <ul class="nav nav-pills mb-3 justify-content-center" id="modeTabs">
-        <li class="nav-item">
-          <button
-            class="nav-link active"
-            type="button"
-            data-mode="login"
-            onclick="switchMode('login')"
-          >
-            Login
-          </button>
-        </li>
-        <li class="nav-item">
-          <button
-            class="nav-link"
-            type="button"
-            data-mode="register"
-            onclick="switchMode('register')"
-          >
-            Register
-          </button>
-        </li>
-      </ul>
+      <div class="auth-shell-inner">
+        <div class="auth-grid">
+          <!-- LEFT: branding / intro -->
+          <aside class="auth-side d-none d-md-flex flex-column justify-content-between">
+            <div>
+              <div class="auth-badge mb-3">
+                <span>✨ Vocabulary Trainer</span>
+                <span class="badge bg-light text-dark border-0">Beta</span>
+              </div>
 
-      <div class="mb-3">
-        <label class="form-label">Username</label>
-        <input
-          id="loginUsername"
-          class="form-control"
-          autocomplete="username"
-        />
-      </div>
+              <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="auth-logo">📚</div>
+                <div>
+                  <div class="auth-title">เก็บทุกคำที่เรียนรู้ไว้ในที่เดียว</div>
+                  <div class="auth-subtitle">
+                    Sync กับ Google Sheet · Practice · Quiz · Stats
+                  </div>
+                </div>
+              </div>
 
-      <div class="mb-3">
-        <label class="form-label">Password</label>
-        <input
-          id="loginPassword"
-          type="password"
-          class="form-control"
-          autocomplete="current-password"
-        />
-      </div>
+              <div class="auth-highlight">
+                <div class="mb-1 fw-semibold small">เหมาะสำหรับ</div>
+                <ul class="mb-2">
+                  <li>เด็กสายอินเตอร์ / เด็กห้อง Eng Program</li>
+                  <li>ติวสอบ GAT / TU-GET / IELTS Vocabulary</li>
+                  <li>คนที่อยากมี “คลังศัพท์ส่วนตัว” แบบจริงจัง</li>
+                </ul>
+                <div class="small">
+                  ล็อกอินครั้งเดียว ระบบจะจำ list ของคุณ และให้ฝึกซ้ำได้ทุกวัน
+                </div>
+              </div>
+            </div>
 
-      <div class="mb-3" id="displayNameGroup" style="display: none">
-        <label class="form-label">Display name (ชื่อที่ใช้แสดง)</label>
-        <input
-          id="displayName"
-          class="form-control"
-          placeholder="เช่น Beam, Mint, เด็กห้อง 3/2"
-        />
-      </div>
+            <div class="auth-footer-note">
+              Tip: ลองเพิ่มคำสั้น ๆ ก่อน แล้วค่อย import CSV ทีหลังได้
+            </div>
 
-      <div class="d-grid gap-2">
-        <button
-          id="primaryBtn"
-          class="btn btn-primary d-flex align-items-center justify-content-center gap-2"
-          onclick="submitForm()"
-        >
-          <span id="primaryBtnLabel">Login</span>
-          <div
-            id="primaryBtnSpinner"
-            class="spinner-border spinner-border-sm text-light d-none"
-            role="status"
-          >
-            <span class="visually-hidden">Loading...</span>
+            <div class="auth-orbit"></div>
+          </aside>
+
+          <!-- RIGHT: login card -->
+          <div class="d-flex justify-content-center align-items-center">
+            <div class="card card-login w-100">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                  <h4 class="mb-1">เข้าสู่ Vocabulary Trainer</h4>
+                  <p class="text-muted-soft mb-0">
+                    เข้าสู่ระบบหรือสมัครสมาชิกใหม่เพื่อซิงก์คำศัพท์ของคุณ
+                  </p>
+                </div>
+              </div>
+
+              <ul class="nav nav-pills mb-3 justify-content-center" id="modeTabs">
+                <li class="nav-item">
+                  <button
+                    class="nav-link active"
+                    type="button"
+                    data-mode="login"
+                    onclick="switchMode('login')"
+                  >
+                    Login
+                  </button>
+                </li>
+                <li class="nav-item">
+                  <button
+                    class="nav-link"
+                    type="button"
+                    data-mode="register"
+                    onclick="switchMode('register')"
+                  >
+                    Register
+                  </button>
+                </li>
+              </ul>
+
+              <div class="mb-3">
+                <label class="form-label">Username</label>
+                <div class="field-shell">
+                  <span class="field-icon">👤</span>
+                  <input
+                    id="loginUsername"
+                    class="form-control"
+                    autocomplete="username"
+                  />
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Password</label>
+                <div class="field-shell">
+                  <span class="field-icon">🔒</span>
+                  <input
+                    id="loginPassword"
+                    type="password"
+                    class="form-control"
+                    autocomplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    class="toggle-password"
+                    onclick="togglePassword()"
+                    aria-label="Toggle password visibility"
+                  >
+                    👁
+                  </button>
+                </div>
+              </div>
+
+              <div class="mb-3" id="displayNameGroup" style="display: none">
+                <label class="form-label">Display name (ชื่อที่ใช้แสดง)</label>
+                <div class="field-shell">
+                  <span class="field-icon">✨</span>
+                  <input
+                    id="displayName"
+                    class="form-control"
+                    placeholder="เช่น Beam, Mint, เด็กห้อง 3/2"
+                  />
+                </div>
+              </div>
+
+              <div class="helper-row mb-2">
+                <span>Tip: จำ username/password ให้ดี ระบบยังไม่มีลืมรหัสผ่านนะ 😅</span>
+              </div>
+
+              <div class="d-grid gap-2 mb-1">
+                <button
+                  id="primaryBtn"
+                  class="btn d-flex align-items-center justify-content-center gap-2"
+                  onclick="submitForm()"
+                >
+                  <span id="primaryBtnLabel">Login</span>
+                  <div
+                    id="primaryBtnSpinner"
+                    class="spinner-border spinner-border-sm text-light d-none"
+                    role="status"
+                  >
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                </button>
+              </div>
+
+              <div
+                id="loginError"
+                class="text-danger small mt-2"
+                style="display: none"
+              ></div>
+            </div>
           </div>
-        </button>
+        </div>
       </div>
-
-      <div
-        id="loginError"
-        class="text-danger small mt-3"
-        style="display: none"
-      ></div>
     </div>
 
     <!-- Toast แสดงสถานะ -->
@@ -196,7 +578,7 @@
     </div>
 
     <script>
-      // ใช้ URL เดียวกันกับ app.js
+      // ใช้ URL เดียวกับ app.js
       const API_URL =
         "https://script.google.com/macros/s/AKfycbxF2M9zo8CGTEeHpmNJJtm0yAdg2VzDdQvpqqNBD0pNgS51NjseavEdsfieXt5tyu0bzg/exec";
 
@@ -227,6 +609,13 @@
           dnGroup.style.display = "none";
           primaryBtnLabel.textContent = "Login";
         }
+      }
+
+      // toggle show/hide password
+      function togglePassword() {
+        const input = document.getElementById("loginPassword");
+        if (!input) return;
+        input.type = input.type === "password" ? "text" : "password";
       }
 
       // ล้าง prefix "Error: " จาก Apps Script
@@ -300,7 +689,7 @@
         }
       }
 
-      // ฟังก์ชันแยกชัด ๆ ระหว่าง login กับ register
+      // ฟังก์ชัน login
       async function submitLogin() {
         const username = document
           .getElementById("loginUsername")
@@ -429,13 +818,10 @@
         }
       }
 
-      // กด Enter:
-      //   - ถ้าอยู่โหมด login → login
-      //   - ถ้าอยู่โหมด register → register
+      // กด Enter
       document.addEventListener("keydown", (e) => {
         if (e.key !== "Enter") return;
 
-        // ให้ทำงานเฉพาะถ้าโฟกัสอยู่ใน input ของฟอร์ม
         const ae = document.activeElement;
         const isInput =
           ae &&

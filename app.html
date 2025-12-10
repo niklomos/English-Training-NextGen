@@ -6,23 +6,30 @@
     <title>Vocabulary Trainer</title>
     <link rel="icon" type="image/png" href="./images/logo.png" />
 
+    <!-- Fonts -->
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Bootstrap -->
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- CSV / XLSX -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
     <!-- Lottie -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
-    <link rel="stylesheet" href="app.css">
 
-    <style>
-    </style>
+    <!-- App styles -->
+    <link rel="stylesheet" href="app.css" />
+
+    <style></style>
   </head>
   <body>
     <!-- Loading overlay -->
@@ -52,6 +59,7 @@
     </div>
 
     <div class="container py-4">
+      <!-- NAVBAR -->
       <nav class="navbar navbar-expand-lg bg-transparent mb-3">
         <div class="container-fluid p-0 align-items-center d-flex">
           <a class="navbar-brand d-flex align-items-center gap-3 me-2" href="#">
@@ -98,6 +106,8 @@
               <li class="nav-item">
                 <button class="nav-link" data-tab="stats">Stats</button>
               </li>
+
+              <!-- user pill -->
               <li class="nav-item ms-3">
                 <div
                   id="userPill"
@@ -119,6 +129,7 @@
                 </div>
               </li>
 
+              <!-- theme toggle -->
               <li class="nav-item d-flex align-items-center ms-2">
                 <button
                   id="themeToggle"
@@ -134,154 +145,250 @@
         </div>
       </nav>
 
-      <!-- LIBRARY -->
+      <!-- ================= LIBRARY ================= -->
       <section class="card card-custom mb-3 p-3" id="panel-library">
         <div class="row g-3">
+          <!-- LEFT : form + list -->
           <div class="col-lg-8">
-            <div class="d-flex gap-2 flex-wrap mb-2">
-              <input
-                id="inputWord"
-                type="text"
-                class="form-control"
-                placeholder="Word (EN)"
-                style="min-width: 140px"
-              />
-              <input
-                id="inputTrans"
-                type="text"
-                class="form-control"
-                placeholder="Translation (TH)"
-                style="min-width: 140px"
-              />
-              <button class="btn btn-primary" onclick="addWord()">Add</button>
+            <!-- add new word card -->
+            <div class="library-input-shell mb-3">
+              <div class="library-input-header">
+                <div>
+                  <div class="library-input-title">Add new word</div>
+                  <div class="library-input-subtitle">
+                    เพิ่มคำศัพท์ใหม่ทีละคำ แล้วค่อยไปฝึกใน Practice / Quiz
+                  </div>
+                </div>
+                <div class="library-input-pill">
+                  🌱 Building your vocab
+                </div>
+              </div>
+
+              <div class="library-input-row d-flex gap-2 flex-wrap">
+                <input
+                  id="inputWord"
+                  type="text"
+                  class="form-control"
+                  placeholder="Word (EN)"
+                  style="min-width: 140px"
+                />
+                <input
+                  id="inputTrans"
+                  type="text"
+                  class="form-control"
+                  placeholder="Translation (TH)"
+                  style="min-width: 140px"
+                />
+                <button class="btn btn-primary" onclick="addWord()">Add</button>
+              </div>
             </div>
 
-            <div class="d-flex gap-2 align-items-center mb-2">
-              <input
-                id="search"
-                class="form-control"
-                placeholder="ค้นหา..."
-                oninput="renderLibrary()"
-              />
-              <select
-                id="filter"
-                class="form-select"
-                style="width: 160px"
-                onchange="renderLibrary()"
-              >
-                <option value="all">All</option>
-                <option value="weak">Weak</option>
-                <option value="mastered">Mastered</option>
-              </select>
+            <!-- search / filter -->
+            <div class="library-filter-row d-flex gap-2 align-items-center mb-2">
+              <div class="flex-grow-1 position-relative">
+                <span class="library-search-icon">🔍</span>
+                <input
+                  id="search"
+                  class="form-control library-search-input"
+                  placeholder="ค้นหาในคลังคำศัพท์ของคุณ…"
+                  oninput="renderLibrary()"
+                />
+              </div>
+
+              <div class="library-filter-select-wrap">
+                <select
+                  id="filter"
+                  class="form-select"
+                  onchange="renderLibrary()"
+                >
+                  <option value="all">All</option>
+                  <option value="weak">Weak</option>
+                  <option value="mastered">Mastered</option>
+                </select>
+              </div>
             </div>
 
+            <!-- list -->
             <div
-              class="list-group"
+              class="list-group library-list"
               id="list"
               style="max-height: 520px; overflow: auto"
             ></div>
           </div>
 
+          <!-- RIGHT : summary -->
           <aside class="col-lg-4">
-            <div class="d-flex flex-column gap-3">
-              <div class="card p-2">
-                <small class="small-muted">Total</small>
-                <div id="statTotal" class="h5 mb-0">0</div>
-              </div>
-              <div class="card p-2">
-                <small class="small-muted">Mastered (&ge;3)</small>
-                <div id="statMaster" class="h5 mb-0">0</div>
-              </div>
-              <div class="card p-2">
-                <small class="small-muted">Weak (&ge;2)</small>
-                <div id="statWeak" class="h5 mb-0">0</div>
+            <div class="library-summary-stack">
+              <!-- Total -->
+              <div class="summary-card summary-card-total">
+                <div class="summary-card-header">
+                  <span>Total words</span>
+                  <span class="summary-chip">Overview</span>
+                </div>
+                <div class="summary-value-row">
+                  <div id="statTotal" class="summary-value">0</div>
+                </div>
+                <div class="summary-caption">
+                  จำนวนคำทั้งหมดในคลังของคุณตอนนี้
+                </div>
               </div>
 
-              <div class="d-flex gap-2">
-                <button class="btn btn-danger w-50" onclick="clearAll()">
+              <!-- Mastered -->
+              <div class="summary-card summary-card-mastered">
+                <div class="summary-card-header">
+                  <span>Mastered (≥3)</span>
+                  <span class="summary-chip chip-green">Strong</span>
+                </div>
+                <div class="summary-value-row">
+                  <div id="statMaster" class="summary-value">0</div>
+                  <div id="statMasterPercent" class="summary-percent">0%</div>
+                </div>
+                <div class="summary-progress progress">
+                  <div
+                    id="statMasterBar"
+                    class="progress-bar"
+                    role="progressbar"
+                    style="width: 0%"
+                  ></div>
+                </div>
+                <div class="summary-caption">
+                  คำที่ตอบถูกอย่างน้อย 3 ครั้ง ถือว่าพร้อมใช้งานจริงแล้ว
+                </div>
+              </div>
+
+              <!-- Weak -->
+              <div class="summary-card summary-card-weak">
+                <div class="summary-card-header">
+                  <span>Weak (≥2 wrong)</span>
+                  <span class="summary-chip chip-amber">Need review</span>
+                </div>
+                <div class="summary-value-row">
+                  <div id="statWeak" class="summary-value">0</div>
+                  <div id="statWeakPercent" class="summary-percent">0%</div>
+                </div>
+                <div class="summary-progress progress">
+                  <div
+                    id="statWeakBar"
+                    class="progress-bar"
+                    role="progressbar"
+                    style="width: 0%"
+                  ></div>
+                </div>
+                <div class="summary-caption">
+                  ถ้าสัดส่วนคำอ่อนเริ่มเยอะ ให้เน้น Practice Weak / Quiz Weak
+                </div>
+              </div>
+
+              <div class="d-flex gap-2 mt-1">
+                <button class="btn btn-danger flex-fill" onclick="clearAll()">
                   Clear
                 </button>
-               
-
-              <div></div>
+              </div>
             </div>
           </aside>
         </div>
       </section>
 
-      <!-- IO -->
+      <!-- ================= IMPORT / EXPORT ================= -->
       <section
         class="card card-custom mb-3 p-3"
         id="panel-io"
         style="display: none"
       >
-        <div class="row g-3">
-          <div class="col-md-6">
-            <div class="fw-bold">Import CSV</div>
-            <div class="small-muted">
-              Header: <code>Word,Translation</code> (UTF-8 recommended)
-            </div>
-            <input
-              id="fileIn2"
-              type="file"
-              accept=".csv"
-              onchange="handleImportFile(event)"
-              class="form-control mt-2"
-            />
-            <textarea
-              id="pasteCsv"
-              rows="8"
-              class="form-control mt-2"
-              placeholder="วาง CSV ที่นี่ (มี header)"
-            ></textarea>
-            <div class="mt-2 d-flex gap-2">
-              <button class="btn btn-primary" onclick="importFromPaste()">
-                Import from paste
-              </button>
-              <button
-                class="btn btn-outline-secondary"
-                onclick="autoFixPaste()"
-              >
-                Try auto-fix encoding
-              </button>
+        <div class="panel-header mb-3">
+          <div>
+            <div class="panel-title">Import / Export</div>
+            <div class="panel-subtitle">
+              จัดการคำศัพท์ผ่านไฟล์ CSV เพื่อสำรองหรือย้ายเครื่องได้ง่าย ๆ
             </div>
           </div>
+          <div class="panel-tag">Data tools</div>
+        </div>
+
+        <div class="row g-3">
           <div class="col-md-6">
-            <div class="fw-bold">Export</div>
-            <div class="small-muted">
-              Export เป็น UTF-8 + BOM (Excel friendly)
+            <div class="panel-section">
+              <div class="panel-section-title">Import CSV</div>
+              <div class="small-muted">
+                Header: <code>Word,Translation</code> (UTF-8 recommended)
+              </div>
+              <input
+                id="fileIn2"
+                type="file"
+                accept=".csv"
+                onchange="handleImportFile(event)"
+                class="form-control mt-2"
+              />
+              <textarea
+                id="pasteCsv"
+                rows="8"
+                class="form-control mt-2"
+                placeholder="วาง CSV ที่นี่ (มี header)"
+              ></textarea>
+              <div class="mt-2 d-flex gap-2 flex-wrap">
+                <button class="btn btn-primary" onclick="importFromPaste()">
+                  Import from paste
+                </button>
+                <button
+                  class="btn btn-outline-secondary"
+                  onclick="autoFixPaste()"
+                >
+                  Try auto-fix encoding
+                </button>
+              </div>
             </div>
-            <div class="d-flex gap-2 mt-2">
-              <button class="btn btn-primary" onclick="exportCSV()">
-                Export CSV
-              </button>
-              <button class="btn btn-outline-secondary" onclick="copyCSV()">
-                Copy CSV
-              </button>
+          </div>
+
+          <div class="col-md-6">
+            <div class="panel-section">
+              <div class="panel-section-title">Export</div>
+              <div class="small-muted">
+                Export เป็น UTF-8 + BOM (Excel friendly)
+              </div>
+              <div class="d-flex gap-2 mt-2 flex-wrap">
+                <button class="btn btn-primary" onclick="exportCSV()">
+                  Export CSV
+                </button>
+                <button class="btn btn-outline-secondary" onclick="copyCSV()">
+                  Copy CSV
+                </button>
+              </div>
+              <div class="small-muted mt-2">
+                ใช้ไฟล์เดียวกันนี้นำไป import ในอุปกรณ์อื่นได้ทันที
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- PRACTICE -->
+      <!-- ================= PRACTICE ================= -->
       <section
         class="card card-custom mb-3 p-3"
         id="panel-practice"
         style="display: none"
       >
+        <div class="panel-header mb-3">
+          <div>
+            <div class="panel-title">Practice</div>
+            <div class="panel-subtitle">
+              โหมดฝึกแบบแฟลชการ์ด เลือกช่วงคำหรือฝึกเฉพาะคำอ่อนก็ได้
+            </div>
+          </div>
+          <div class="panel-tag">Daily training</div>
+        </div>
+
         <div class="d-flex gap-2 flex-wrap align-items-center mb-2">
-          <div class="fw-bold">Practice</div>
           <input
             id="pStart"
             type="number"
-            class="form-control"
+            class="form-control range-input"
             placeholder="start (1)"
             style="width: 110px"
           />
           <input
             id="pEnd"
             type="number"
-            class="form-control"
+            class="form-control range-input"
             placeholder="end"
             style="width: 110px"
           />
@@ -303,7 +410,7 @@
             Stop
           </button>
 
-          <!-- สวิตช์ Auto Sound สำหรับ Practice -->
+          <!-- Auto Sound switch -->
           <div class="ms-auto d-flex align-items-center">
             <label class="sound-toggle mb-0">
               <input
@@ -323,7 +430,11 @@
 
         <div class="row g-3">
           <div class="col-lg-8">
-            <div id="practiceCard" class="card p-3" style="display: none">
+            <div
+              id="practiceCard"
+              class="card practice-card p-3"
+              style="display: none"
+            >
               <div class="d-flex align-items-center gap-3 flex-wrap mb-2">
                 <span id="pID" class="badge bg-primary fs-6 px-3 py-2">5</span>
                 <h4 id="pWord" class="mb-0 fw-bold">Word</h4>
@@ -351,7 +462,7 @@
                 <button class="btn btn-danger" onclick="markUnknown()">
                   ❌ Unknown
                 </button>
-                 <button class="btn btn-success" onclick="markKnown()">
+                <button class="btn btn-success" onclick="markKnown()">
                   ✅ Known
                 </button>
                 <button
@@ -376,13 +487,16 @@
           </div>
 
           <div class="col-lg-4">
-            <div class="small-muted">Queue: <span id="pCount">0</span></div>
-            <div class="small-muted">Index: <span id="pIndex">0</span></div>
+            <div class="practice-meta card p-2">
+              <div class="small-muted">
+                Queue: <span id="pCount">0</span>
+              </div>
+              <div class="small-muted">
+                Index: <span id="pIndex">0</span>
+              </div>
+            </div>
             <div class="mt-2 d-flex gap-2">
-              <button
-                class="btn btn-weak flex-fill"
-                onclick="practiceWeak()"
-              >
+              <button class="btn btn-weak flex-fill" onclick="practiceWeak()">
                 Practice weak
               </button>
               <button
@@ -396,25 +510,34 @@
         </div>
       </section>
 
-      <!-- QUIZ -->
+      <!-- ================= QUIZ ================= -->
       <section
         class="card card-custom mb-3 p-3"
         id="panel-quiz"
         style="display: none"
       >
+        <div class="panel-header mb-3">
+          <div>
+            <div class="panel-title">Quiz</div>
+            <div class="panel-subtitle">
+              Multiple choice / Spelling / Random — วัดผลพร้อมเก็บสถิติ
+            </div>
+          </div>
+          <div class="panel-tag">Check yourself</div>
+        </div>
+
         <div class="d-flex gap-2 flex-wrap align-items-center mb-2">
-          <div class="fw-bold">Quiz (Multiple choice / Spelling / Random)</div>
           <input
             id="qStart"
             type="number"
-            class="form-control"
+            class="form-control range-input"
             placeholder="start (1)"
             style="width: 110px"
           />
           <input
             id="qEnd"
             type="number"
-            class="form-control"
+            class="form-control range-input"
             placeholder="end"
             style="width: 110px"
           />
@@ -441,7 +564,7 @@
             <input id="autoNext" type="checkbox" checked /> Auto next
           </label>
 
-          <!-- สวิตช์ Auto Sound สำหรับ Quiz -->
+          <!-- Auto Sound switch for Quiz -->
           <div class="ms-auto d-flex align-items-center">
             <label class="sound-toggle mb-0">
               <input
@@ -463,7 +586,7 @@
           <div class="col-lg-8">
             <div
               id="quizCard"
-              class="card p-3"
+              class="card quiz-card p-3"
               style="display: none; min-height: 160px"
             >
               <div class="h4" id="qWord">Word</div>
@@ -478,6 +601,7 @@
               </div>
               <div class="mt-2" id="qOptions"></div>
 
+              <!-- Spelling area -->
               <div
                 id="spellingArea"
                 style="
@@ -546,11 +670,11 @@
           </div>
 
           <div class="col-lg-4">
-            <div class="card p-2 mb-2">
+            <div class="card p-2 mb-2 quiz-score-card">
               <small class="small-muted">Score</small>
               <div id="qScore" class="h6">0 / 0</div>
             </div>
-            <div class="small-muted">Wrong this session</div>
+            <div class="small-muted mb-1">Wrong this session</div>
             <div
               id="sessionWrong"
               style="max-height: 260px; overflow: auto; color: var(--muted)"
@@ -559,19 +683,29 @@
         </div>
       </section>
 
-          <!-- STATS -->
+      <!-- ================= STATS ================= -->
       <section
         class="card card-custom mb-3 p-3"
         id="panel-stats"
         style="display: none"
       >
+        <div class="panel-header mb-3">
+          <div>
+            <div class="panel-title">Stats</div>
+            <div class="panel-subtitle">
+              ดูภาพรวมการเรียนรู้ของคุณ และคำที่ต้องโฟกัสเป็นพิเศษ
+            </div>
+          </div>
+          <div class="panel-tag">Overview</div>
+        </div>
+
         <div class="row g-3">
           <div class="col-md-8">
             <h5 class="mb-2">Weak words</h5>
             <div id="weakList"></div>
           </div>
 
-          <!-- ====== สรุปสถานะผู้ใช้ + กราฟ ====== -->
+          <!-- summary + graph -->
           <div class="col-md-4">
             <div class="fw-bold mb-2">Your progress</div>
 
@@ -591,19 +725,14 @@
                   </div>
                 </div>
 
-                <!-- วงกลมเปอร์เซ็นแบบเว็บใหญ่ -->
                 <div class="mastery-ring">
-                  <div
-                    id="masteryCircle"
-                    class="mastery-ring-fill"
-                  ></div>
+                  <div id="masteryCircle" class="mastery-ring-fill"></div>
                   <div class="mastery-ring-center">
                     <span id="masteryPercentText">0%</span>
                   </div>
                 </div>
               </div>
 
-              <!-- แถบเปอร์เซ็น mastered / weak -->
               <div class="mt-3">
                 <div
                   class="d-flex justify-content-between small-muted mb-1"
@@ -662,8 +791,8 @@
           </div>
         </div>
       </section>
-
     </div>
+
     <script src="app.js"></script>
   </body>
 </html>

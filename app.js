@@ -1,4 +1,4 @@
-/* app.js — vocabulary trainer with theme, Lottie logo, and smoother UI */
+// app.js — vocabulary trainer with theme, Lottie logo, and smoother UI
 
 // ------------------------------
 // Small helper: debounce
@@ -52,6 +52,7 @@ function applyTheme(theme) {
     navEl && navEl.classList.remove('navbar-dark');
     navEl && navEl.classList.add('navbar-light');
   }
+
   if (theme === 'dark') {
     themeToggle && (themeToggle.textContent = '☀️');
     themeToggle && themeToggle.setAttribute('aria-pressed', 'true');
@@ -59,6 +60,7 @@ function applyTheme(theme) {
     themeToggle && (themeToggle.textContent = '🌙');
     themeToggle && themeToggle.setAttribute('aria-pressed', 'false');
   }
+
   try {
     localStorage.setItem(THEME_KEY, theme);
   } catch (e) {}
@@ -223,18 +225,17 @@ async function buildVocabWithProgress(rows) {
 
     for (let j = i; j < end; j++) {
       const r = rows[j];
-     vocab.push({
-  id: r.id,
-  word: r.word || r.eng || '',
-  translation: r.translation || r.thai || '',
-  correct: Number(r.correct || 0),
-  wrong: Number(r.wrong || 0),
-  lastSeen: r.lastSeen || null
-});
+      vocab.push({
+        id: r.id,
+        word: r.word || r.eng || '',
+        translation: r.translation || r.thai || '',
+        correct: Number(r.correct || 0),
+        wrong: Number(r.wrong || 0),
+        lastSeen: r.lastSeen || null
+      });
 
-// ใช้กฎ mastered: correct >= 3 ⇒ wrong = 0
-applyMasteryRule(vocab.length - 1);
-
+      // ใช้กฎ mastered: correct >= 3 ⇒ wrong = 0
+      applyMasteryRule(vocab.length - 1);
     }
 
     const pct = 30 + (end / total) * 60; // 30 → 90%
@@ -302,10 +303,12 @@ document.querySelectorAll('.nav-link').forEach(t => {
 
 function renderLibraryImmediate() {
   const list = document.getElementById('list');
+  if (!list) return;
 
   list.innerHTML = '';
   const q = (document.getElementById('search').value || '').toLowerCase();
   const filter = document.getElementById('filter').value;
+
   let items = vocab.map((it, i) => ({ ...it, idx: i }));
   if (filter === 'weak') items = items.filter(i => (i.wrong || 0) >= 2);
   if (filter === 'mastered') items = items.filter(i => (i.correct || 0) >= 3);
@@ -313,44 +316,55 @@ function renderLibraryImmediate() {
     items = items.filter(i =>
       (i.word + ' ' + i.translation).toLowerCase().includes(q)
     );
+
   if (!items.length) {
-    list.innerHTML = '<div class="small small-muted">ไม่มีคำศัพท์</div>';
+    list.innerHTML =
+      '<div class="small small-muted px-2 py-2">ไม่มีคำศัพท์</div>';
     return;
   }
+
   items.forEach(it => {
     const el = document.createElement('div');
-    el.className =
-      'list-group-item d-flex justify-content-between align-items-center';
+    const mastered = (it.correct || 0) >= 3;
+    const weak = (it.wrong || 0) >= 2;
+
+    const tagHtml =
+      mastered || weak
+        ? `<div class="vocab-tags">
+             ${mastered ? '<span class="pill pill-mastered">Mastered</span>' : ''}
+             ${weak ? '<span class="pill pill-weak">Needs review</span>' : ''}
+           </div>`
+        : '';
+
+    el.className = 'list-group-item vocab-row';
     el.innerHTML = `
-      <div class="d-flex gap-3 align-items-center">
-        <div class="badge bg-light text-muted" style="min-width:44px;text-align:center">${
-          it.idx + 1
-        }</div>
-        <div>
-          <div class="fw-bold text-word">${escapeHtml(it.word)}</div>
-          <div class="small text-muted text-list">${escapeHtml(
-            it.translation
-          )}</div>
-          <div class="small">✅ ${it.correct || 0} ❌ ${it.wrong || 0}</div>
+      <div class="vocab-main">
+        <div class="vocab-index">${it.idx + 1}</div>
+        <div class="vocab-meta">
+          <div class="vocab-word">${escapeHtml(it.word)}</div>
+          <div class="vocab-translation">${escapeHtml(it.translation)}</div>
+          ${tagHtml}
+          <div class="vocab-stat-line">
+            <span class="stat-good">✅ ${it.correct || 0}</span>
+            <span class="stat-bad">❌ ${it.wrong || 0}</span>
+          </div>
         </div>
       </div>
-      <div class="d-flex gap-2 align-items-center text-list">
-        <button class="btn btn-icon-circle icon-sound btn-sm" onclick="playENIndex(${
-          it.idx
-        })">
+      <div class="vocab-actions">
+        <button class="btn btn-icon-circle icon-sound btn-sm"
+          onclick="playENIndex(${it.idx})">
           <img src="./icon/sound.png" alt="sound" class="icon-static" />
         </button>
-        <button class="btn btn-icon-circle icon-edit btn-sm" onclick="editItem(${
-          it.idx
-        })">
+        <button class="btn btn-icon-circle icon-edit btn-sm"
+          onclick="editItem(${it.idx})">
           <img src="./icon/edit.png" alt="edit" class="icon-static" />
         </button>
-        <button class="btn btn-icon-circle icon-delete btn-sm" onclick="deleteItem(${
-          it.idx
-        })">
+        <button class="btn btn-icon-circle icon-delete btn-sm"
+          onclick="deleteItem(${it.idx})">
           <img src="./icon/delete.png" alt="delete" class="icon-static" />
         </button>
-      </div>`;
+      </div>
+    `;
     list.appendChild(el);
   });
 }
@@ -423,7 +437,6 @@ function editItem(i) {
   renderLibraryImmediate();
 }
 
-// ลบคำศัพท์ 1 คำ
 function deleteItem(i) {
   if (!confirm('ลบคำศัพท์นี้ทั้งหมด (รวมสถิติ)?')) return;
   vocab.splice(i, 1);
@@ -432,7 +445,6 @@ function deleteItem(i) {
   updateStatsUI();
 }
 
-// ล้าง vocab ทั้งหมด
 function clearAll() {
   if (!confirm('ล้างคำศัพท์ทั้งหมดของคุณ (รวมสถิติทุกคำ)?')) return;
   vocab = [];
@@ -551,6 +563,11 @@ function importFromPaste() {
   importItems(items);
 }
 
+// auto-fix encoding stub
+function autoFixPaste() {
+  alert('ลองวางใหม่เป็น UTF-8 ก่อนนะ (ฟังก์ชัน auto-fix ยังเป็น placeholder)');
+}
+
 /* ------------------------------
   Practice (flashcards)
 -------------------------------*/
@@ -621,14 +638,14 @@ function startPractice() {
   showPracticeCard();
 }
 
-// helper: index ของคำอ่อน (wrong >= 2)
 function getWeakIndices() {
   return vocab
     .map((it, i) => ({ it, i }))
     .filter(x => (x.it.wrong || 0) >= 2)
     .map(x => x.i);
 }
-// ถ้าตอบถูกครบ 3 ครั้งขึ้นไป ให้ล้าง wrong = 0
+
+// กฎ mastery: correct >= 3 → wrong = 0
 function applyMasteryRule(idx) {
   const item = vocab[idx];
   if (!item) return;
@@ -640,7 +657,6 @@ function applyMasteryRule(idx) {
     item.wrong = 0;
   }
 }
-
 
 function showPracticeCard() {
   const pIDEl = document.getElementById('pID');
@@ -715,12 +731,11 @@ function markKnown() {
   );
   if (idx < 0) return;
   vocab[idx].correct = (vocab[idx].correct || 0) + 1;
-  applyMasteryRule(idx);        // << เพิ่มบรรทัดนี้
+  applyMasteryRule(idx);
   vocab[idx].lastSeen = Date.now();
   saveAll();
   nextPractice();
 }
-
 
 function markUnknown() {
   const idx = parseInt(
@@ -746,10 +761,7 @@ document.addEventListener('keydown', function (e) {
       ae.tagName === 'TEXTAREA' ||
       ae.isContentEditable);
 
-  // ถ้ากำลังพิมพ์ในช่อง input/textarea ให้กดได้ปกติ (ยกเว้น Shift)
-  if (isTextField && e.key !== 'Shift') {
-    return;
-  }
+  if (isTextField && e.key !== 'Shift') return;
 
   const practiceCard = document.getElementById('practiceCard');
   const quizCard = document.getElementById('quizCard');
@@ -758,32 +770,25 @@ document.addEventListener('keydown', function (e) {
     practiceCard && practiceCard.offsetParent !== null;
   const quizVisible = quizCard && quizCard.offsetParent !== null;
 
-  // ใช้ ArrowLeft/Right ได้เฉพาะตอน practiceCard โชว์อยู่เท่านั้น
   if (e.key === 'ArrowLeft') {
-    if (!practiceVisible) return; // ถ้าไม่ได้อยู่หน้า Practice → ไม่ต้องทำอะไร
+    if (!practiceVisible) return;
     e.preventDefault();
     markUnknown();
     return;
   }
 
   if (e.key === 'ArrowRight') {
-    if (!practiceVisible) return; // ถ้าไม่ได้อยู่หน้า Practice → ไม่ต้องทำอะไร
+    if (!practiceVisible) return;
     e.preventDefault();
     markKnown();
     return;
   }
 
-  // Shift = เล่นเสียง (ตามเดิม) เฉพาะตอน Practice/Quiz โชว์อยู่
   if (e.key === 'Shift') {
     e.preventDefault();
 
     if (practiceVisible && !quizVisible) {
       playEN('practice');
-      return;
-    }
-
-    if (quizVisible && !practiceVisible) {
-      playEN('quiz');
       return;
     }
 
@@ -794,12 +799,10 @@ document.addEventListener('keydown', function (e) {
   }
 });
 
-
 function stopPractice() {
   document.getElementById('practiceCard').style.display = 'none';
 }
 
-// ใช้เฉพาะคำอ่อน (wrong >= 2) สำหรับ practice
 function practiceWeak() {
   const weak = getWeakIndices();
   if (!weak.length) {
@@ -925,7 +928,6 @@ function startQuiz() {
   showNextQuiz(quizRandomize ? null : quizFixedMode);
 }
 
-// Quiz เฉพาะคำอ่อน (wrong >= 2)
 function startQuizWeak() {
   if (!vocab.length) return alert('ไม่มีคำศัพท์');
   const weak = getWeakIndices();
@@ -1052,8 +1054,7 @@ function renderReverse(q) {
   document.getElementById('qProgress').style.width = pct + '%';
 }
 
-/* ---------- Spelling status indicator ---------- */
-
+/* ---------- Spelling helpers ---------- */
 function resetSpellingStatus() {
   const wrapper = document.getElementById('spellingStatus');
   if (!wrapper) return;
@@ -1087,8 +1088,6 @@ function showSpellingStatus(kind, word, detailText) {
   wrapper.classList.add('visible');
 }
 
-/* ---------- Spelling renderers ---------- */
-
 function renderSpelling(q) {
   resetSpellingStatus();
 
@@ -1102,6 +1101,7 @@ function renderSpelling(q) {
   document.getElementById('spellingFeedback').textContent = '';
   document.getElementById('spellingArea').style.display = 'block';
   document.getElementById('qOptions').innerHTML = '';
+
   const word = q.item.word;
   const revealCount = Math.min(2, Math.floor(word.length / 4));
   const revealPositions = new Set();
@@ -1115,6 +1115,7 @@ function renderSpelling(q) {
     span.textContent = revealPositions.has(i) ? ch : '_';
     document.getElementById('qBlanks').appendChild(span);
   }
+
   const done = quizTotal - quizQueue.length;
   const pct = Math.round((done / quizTotal) * 100);
   document.getElementById('qProgress').style.width = pct + '%';
@@ -1134,6 +1135,7 @@ function renderSpellingNoTH(q) {
   document.getElementById('spellingFeedback').textContent = '';
   document.getElementById('spellingArea').style.display = 'block';
   document.getElementById('qOptions').innerHTML = '';
+
   const word = q.item.word;
   const revealCount = Math.min(2, Math.floor(word.length / 4));
   const revealPositions = new Set();
@@ -1147,6 +1149,7 @@ function renderSpellingNoTH(q) {
     span.textContent = revealPositions.has(i) ? ch : '_';
     document.getElementById('qBlanks').appendChild(span);
   }
+
   const done = quizTotal - quizQueue.length;
   const pct = Math.round((done / quizTotal) * 100);
   document.getElementById('qProgress').style.width = pct + '%';
@@ -1234,20 +1237,20 @@ function evaluateSpelling(input, correctObj, idx) {
     .trim()
     .toLowerCase();
 
- if (normalizedInput === normalizedCorrect) {
-  const detailLine = correctTrans
-    ? `${correctWord} — ${correctTrans}`
-    : correctWord;
+  if (normalizedInput === normalizedCorrect) {
+    const detailLine = correctTrans
+      ? `${correctWord} — ${correctTrans}`
+      : correctWord;
 
-  if (fb) fb.textContent = `ถูกต้อง — ${detailLine}`;
-  showSpellingStatus('correct', correctWord, detailLine);
+    if (fb) fb.textContent = `ถูกต้อง — ${detailLine}`;
+    showSpellingStatus('correct', correctWord, detailLine);
 
-  if (idx >= 0 && vocab[idx]) {
-    vocab[idx].correct = (vocab[idx].correct || 0) + 1;
-    applyMasteryRule(idx);            // << เพิ่ม
-  }
-  quizScore++;
-} else {
+    if (idx >= 0 && vocab[idx]) {
+      vocab[idx].correct = (vocab[idx].correct || 0) + 1;
+      applyMasteryRule(idx);
+    }
+    quizScore++;
+  } else {
     const detailLine = correctTrans
       ? `${correctWord} (${correctTrans})`
       : correctWord;
@@ -1290,14 +1293,15 @@ function evaluateQuiz(selected, correct, idx, el) {
     .querySelectorAll('#qOptions .option')
     .forEach(o => (o.onclick = null));
   const auto = document.getElementById('autoNext').checked;
- if (selected === correct) {
-  el.classList.add('correct');
-  quizScore++;
-  if (idx >= 0 && vocab[idx]) {
-    vocab[idx].correct = (vocab[idx].correct || 0) + 1;
-    applyMasteryRule(idx);            // << เพิ่ม
-  }
-} else {
+
+  if (selected === correct) {
+    el.classList.add('correct');
+    quizScore++;
+    if (idx >= 0 && vocab[idx]) {
+      vocab[idx].correct = (vocab[idx].correct || 0) + 1;
+      applyMasteryRule(idx);
+    }
+  } else {
     el.classList.add('wrong');
     if (idx >= 0 && vocab[idx])
       vocab[idx].wrong = (vocab[idx].wrong || 0) + 1;
@@ -1395,18 +1399,16 @@ function playENIndex(i) {
 /* ------------------------------
   Stats & helpers
 -------------------------------*/
-/* ------------------------------
-  Stats & helpers
--------------------------------*/
 function updateStatsUI() {
   const total = vocab.length;
   const mastered = vocab.filter(i => (i.correct || 0) >= 3).length;
   const weak = vocab.filter(i => (i.wrong || 0) >= 2).length;
 
-  // ตัวเลขเดิม (Library + Stats)
+  // ตัวเลขพื้นฐาน (Library + Stats)
   const statTotalEl = document.getElementById('statTotal');
   const statMasterEl = document.getElementById('statMaster');
   const statWeakEl = document.getElementById('statWeak');
+
   const dTotalEl = document.getElementById('dTotal');
   const dMasterEl = document.getElementById('dMaster');
   const dWeakEl = document.getElementById('dWeak');
@@ -1414,20 +1416,32 @@ function updateStatsUI() {
   if (statTotalEl) statTotalEl.textContent = total;
   if (statMasterEl) statMasterEl.textContent = mastered;
   if (statWeakEl) statWeakEl.textContent = weak;
+
   if (dTotalEl) dTotalEl.textContent = total;
   if (dMasterEl) dMasterEl.textContent = mastered;
   if (dWeakEl) dWeakEl.textContent = weak;
 
-  // คำนวณเปอร์เซ็น mastered / weak
   const masteryPercent = total ? Math.round((mastered / total) * 100) : 0;
   const weakPercent = total ? Math.round((weak / total) * 100) : 0;
 
+  // Library summary bars
+  const masterPercentEl = document.getElementById('statMasterPercent');
+  const weakPercentEl = document.getElementById('statWeakPercent');
+  if (masterPercentEl) masterPercentEl.textContent = masteryPercent + '%';
+  if (weakPercentEl) weakPercentEl.textContent = weakPercent + '%';
+
+  const masterBarLib = document.getElementById('statMasterBar');
+  const weakBarLib = document.getElementById('statWeakBar');
+  if (masterBarLib) masterBarLib.style.width = masteryPercent + '%';
+  if (weakBarLib) weakBarLib.style.width = weakPercent + '%';
+
+  // Stats tab – ring + bars
   const masteryCircle = document.getElementById('masteryCircle');
   const masteryPercentText = document.getElementById('masteryPercentText');
   const masteredText = document.getElementById('masteredText');
   const weakText = document.getElementById('weakText');
-  const masteredBar = document.getElementById('masteredBar');
-  const weakBar = document.getElementById('weakBar');
+  const masteredBarStats = document.getElementById('masteredBar');
+  const weakBarStats = document.getElementById('weakBar');
   const levelLabel = document.getElementById('levelLabel');
   const levelHint = document.getElementById('levelHint');
 
@@ -1437,18 +1451,17 @@ function updateStatsUI() {
   if (masteredText) masteredText.textContent = `${mastered} / ${total}`;
   if (weakText) weakText.textContent = String(weak);
 
-  if (masteredBar) masteredBar.style.width = masteryPercent + '%';
-  if (weakBar) weakBar.style.width = weakPercent + '%';
+  if (masteredBarStats) masteredBarStats.style.width = masteryPercent + '%';
+  if (weakBarStats) weakBarStats.style.width = weakPercent + '%';
 
   if (masteryCircle) {
-    const deg = masteryPercent * 3.6; // 100% = 360deg
+    const deg = masteryPercent * 3.6;
     masteryCircle.style.background = `conic-gradient(
       var(--success) ${deg}deg,
       rgba(148, 163, 184, 0.25) 0deg
     )`;
   }
 
-  // แปลงเปอร์เซ็นเป็น "ระดับ" แบบอ่านง่าย
   if (levelLabel && levelHint) {
     let level = 'Newbie';
     let hint = 'เริ่มสะสมคำศัพท์ไปทีละคำ 😊';
@@ -1464,13 +1477,13 @@ function updateStatsUI() {
       hint = 'กำลังไปได้ดี ฝึกคำที่อ่อนให้บ่อยขึ้น';
     } else if (masteryPercent < 80) {
       level = 'Confident';
-      hint = 'โคตรใกล้แล้ว เหลือเก็บคำที่ยังผิดบ่อย ๆ';
+      hint = 'ใกล้แล้ว เหลือเก็บคำที่ยังผิดบ่อย ๆ';
     } else if (masteryPercent < 100) {
       level = 'Almost there';
       hint = 'อีกแค่ไม่กี่คำก็ครบแล้ว สู้ต่ออีกนิด! 🔥';
-    } else if (masteryPercent === 100) {
+    } else {
       level = 'Word Master';
-      hint = 'เก็บครบทุกคำ ปังมาก 🎉 ลองเพิ่ม list ใหม่ได้เลย';
+      hint = 'เก็บครบทุกคำแล้ว 🎉 ลองเพิ่ม list ใหม่ได้เลย';
     }
 
     levelLabel.textContent = level;
@@ -1479,7 +1492,6 @@ function updateStatsUI() {
 
   renderWeakList();
 }
-
 
 function renderWeakList() {
   const el = document.getElementById('weakList');
@@ -1495,20 +1507,26 @@ function renderWeakList() {
       const div = document.createElement('div');
       div.className =
         'list-group-item d-flex justify-content-between align-items-center';
-      div.innerHTML = `<div class="d-flex gap-3 align-items-center"><div class="badge bg-light text-muted" style="min-width:44px;text-align:center">${
-        w.i + 1
-      }</div><div><div class="fw-bold text-word">${escapeHtml(
-        w.word
-      )}</div><div class="small text-muted text-list">${escapeHtml(
-        w.translation
-      )}</div><div class="small">Wrong: ${
-        w.wrong || 0
-      }</div></div></div>
-        <div class="d-flex gap-2"><button class="btn btn-primary btn-sm" onclick="practiceSingle(${
+      div.innerHTML = `<div class="d-flex gap-3 align-items-center">
+        <div class="badge bg-light text-muted" style="min-width:44px;text-align:center">
+          ${w.i + 1}
+        </div>
+        <div>
+          <div class="fw-bold text-word">${escapeHtml(w.word)}</div>
+          <div class="small text-muted text-list">${escapeHtml(
+            w.translation
+          )}</div>
+          <div class="small">Wrong: ${w.wrong || 0}</div>
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary btn-sm" onclick="practiceSingle(${
           w.i
-        })">Practice</button><button class="btn btn-outline-secondary btn-sm" onclick="editItem(${
-        w.i
-      })">Edit</button></div>`;
+        })">Practice</button>
+        <button class="btn btn-outline-secondary btn-sm" onclick="editItem(${
+          w.i
+        })">Edit</button>
+      </div>`;
       el.appendChild(div);
     });
 }
@@ -1551,7 +1569,6 @@ function refreshUI() {
   updateSessionWrong();
 }
 
-// เซฟก่อน unload
 window.addEventListener('beforeunload', () => saveAll());
 
 // init app
@@ -1565,8 +1582,8 @@ async function initApp() {
 initApp();
 
 /* ============================
-   FANCY BUTTON RIPPLE EFFECT
-   ============================= */
+   BUTTON RIPPLE INIT
+   ============================ */
 (function initButtonRipple() {
   const buttons = document.querySelectorAll('button, .btn');
 
@@ -1597,5 +1614,3 @@ initApp();
     });
   });
 })();
-
-//test
